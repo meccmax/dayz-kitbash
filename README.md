@@ -26,13 +26,21 @@ No Workbench, no hand-editing configs. Just a photo edit and a few clicks.
 - **Advanced / "Special" items** — custom `.rvmat` materials (glow/emissive),
   attachments, hidden selections, and full `DamageSystem` damage tiers.
 - **Placeable crates & containers** with custom cargo.
-- **Paint-over UV templates** — load the real vanilla UV layout under your
-  texture on the canvas, or download it to paint in your editor.
+- **Built-in paint editor** — an MS-Paint-style editor right inside the tool:
+  load the vanilla UV layout as your canvas and paint it live (brush, eraser,
+  fill bucket, line/rect/ellipse, eyedropper, undo/redo, zoom/pan, color
+  swatches), then apply it straight to the item. No external editor needed.
+- **Paint-over UV templates** — or download the real vanilla UV layout to paint
+  in Photoshop/GIMP and re-import.
 - **`types.xml` generator** so your items actually spawn in the central economy.
 - **Import an existing `config.cpp`** to edit and extend a mod you already have.
 - **Autosave** (nothing is lost on reload) and **live validation**.
 - **One-click build** — exports the mod folder + a `build.ps1` that converts
   PNG→PAA and packs (optionally signs) the PBO using your DayZ Tools install.
+
+The built-in paint editor — load the UV template and paint it live:
+
+![Kitbash — paint editor](docs/screenshot-paint.png)
 
 The built-in `types.xml` generator so your items spawn in the central economy:
 
