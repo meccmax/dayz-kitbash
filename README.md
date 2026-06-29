@@ -1,4 +1,4 @@
-# Kitbash
+<h1><img src="docs/icon.png" width="30" align="top" alt="KB"> Kitbash</h1>
 
 **Reskin any DayZ item.** A single-file, browser-based GUI for building custom
 DayZ clothing & gear retexture mods — pick a base item, set its stats, drop in a
@@ -6,6 +6,8 @@ texture, and Kitbash generates the `config.cpp`, `types.xml`, and a build script
 that packs a ready-to-deploy PBO.
 
 No Workbench, no hand-editing configs. Just a photo edit and a few clicks.
+
+![Kitbash — build view](docs/screenshot-main.png)
 
 > Not affiliated with or endorsed by Bohemia Interactive. **No game assets are
 > included in this repository** — see [UV templates](#uv-templates-optional).
@@ -31,6 +33,10 @@ No Workbench, no hand-editing configs. Just a photo edit and a few clicks.
 - **Autosave** (nothing is lost on reload) and **live validation**.
 - **One-click build** — exports the mod folder + a `build.ps1` that converts
   PNG→PAA and packs (optionally signs) the PBO using your DayZ Tools install.
+
+The built-in `types.xml` generator so your items spawn in the central economy:
+
+![Kitbash — types.xml](docs/screenshot-types.png)
 
 ## Requirements
 
