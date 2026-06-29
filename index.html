@@ -738,9 +738,11 @@ function renderList(){
     const b=meta(it);
     const row=document.createElement('div');
     row.className='item-row'+(it.id===activeId?' active':'');
-    row.innerHTML=`<div class="thumb" style="${it.tex?`background-image:url('${it.tex}')`:''}"></div>
+    const hasTex = it.tex && /^data:image\//.test(it.tex);   // only trust canvas-generated data URLs
+    row.innerHTML=`<div class="thumb"></div>
       <div class="meta"><div class="nm">${esc(it.display||it.cls)}</div>
-      <div class="bs">${esc(b.label)} · ${it.tex?'<span style="color:var(--good)">tex ✓</span>':'<span style="color:var(--muted)">no tex</span>'}</div></div>`;
+      <div class="bs">${esc(b.label)} · ${hasTex?'<span style="color:var(--good)">tex ✓</span>':'<span style="color:var(--muted)">no tex</span>'}</div></div>`;
+    if(hasTex) row.firstElementChild.style.backgroundImage='url("'+it.tex+'")';  // set via DOM property, not HTML
     row.onclick=()=>{ activeId=it.id; renderAll(); };
     itemList.appendChild(row);
   });

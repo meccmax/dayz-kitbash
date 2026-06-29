@@ -23,4 +23,5 @@ echo   Keep this window open. Press Ctrl+C or close it to stop.
 echo.
 
 start "" http://localhost:8780
-python -m http.server 8780
+REM bind to loopback only — not exposed to the local network
+python -m http.server 8780 --bind 127.0.0.1

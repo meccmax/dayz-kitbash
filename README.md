@@ -59,7 +59,7 @@ Then either:
   opens it in your browser, or
 - run it yourself:
   ```
-  python -m http.server 8780
+  python -m http.server 8780 --bind 127.0.0.1
   ```
   and open <http://localhost:8780>.
 
@@ -93,6 +93,13 @@ the app reads. Re-run after a game update. Use `-Size 1024` for smaller files.
    `@<ModName>/addons`. Enable signing in the Project tab if you want a `.bikey`.
 4. (Optional) Merge the generated `types.xml` into your mission so the items
    spawn as loot.
+
+## Security
+
+Kitbash is fully offline and client-side — **no network requests, no telemetry,
+no third-party dependencies**, and the PowerShell scripts only call your own DayZ
+Tools. See **[SECURITY.md](SECURITY.md)** for the full security review, findings,
+and how to verify it yourself.
 
 ## License
 
