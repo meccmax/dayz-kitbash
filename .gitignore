@@ -1,0 +1,20 @@
+# UV paint-over templates — extracted vanilla DayZ textures (Bohemia Interactive
+# game assets). NOT redistributed. Each user regenerates them locally with
+# build-templates.ps1 from their own DayZ install.
+templates/
+
+# Build outputs
+@*/
+*.pbo
+*.zip
+
+# Signing keys
+keys/
+private/
+*.biprivatekey
+*.bikey
+
+# Scratch / misc
+*_test_config.cpp
+.DS_Store
+Thumbs.db

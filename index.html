@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kitbash — DayZ gear reskinner</title>
+<style>
+  :root{
+    --bg:#14110f; --panel:#1d1916; --panel2:#262019; --line:#3a2f25;
+    --ink:#efe7dd; --muted:#9a8d7e; --accent:#e8772e; --accent2:#ffae5e;
+    --good:#5bbf6a; --bad:#e0563f; --mono:"Cascadia Code",Consolas,"Courier New",monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",system-ui,sans-serif;font-size:14px}
+  header{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:2px solid var(--accent);background:linear-gradient(180deg,#1d1916,#14110f)}
+  header .logo{width:34px;height:34px;border-radius:6px;background:var(--accent);display:grid;place-items:center;font-weight:800;color:#1a120a;font-size:15px}
+  header h1{font-size:16px;margin:0;letter-spacing:.5px}
+  header .sub{color:var(--muted);font-size:12px;margin-left:2px}
+  .top-actions{margin-left:auto;display:flex;gap:8px}
+  button{font-family:inherit;font-size:13px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:7px 12px;border-radius:6px;cursor:pointer}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);color:#1a120a;border-color:var(--accent);font-weight:700}
+  button.primary:hover{background:var(--accent2)}
+  button.ghost{background:transparent}
+  button.danger:hover{border-color:var(--bad);color:var(--bad)}
+  .wrap{display:grid;grid-template-columns:240px 1fr 1fr;height:calc(100vh - 60px)}
+  .col{overflow:auto;padding:14px}
+  .col.list{border-right:1px solid var(--line);background:#161310}
+  .col.editor{border-right:1px solid var(--line)}
+  h2{font-size:12px;text-transform:uppercase;letter-spacing:1.2px;color:var(--accent2);margin:0 0 10px}
+  .item-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;margin-bottom:6px;cursor:pointer;background:var(--panel)}
+  .item-row:hover{border-color:var(--accent)}
+  .item-row.active{border-color:var(--accent);background:var(--panel2)}
+  .item-row .nm{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .item-row .bs{font-size:11px;color:var(--muted)}
+  .item-row .thumb{width:30px;height:30px;border-radius:4px;background:#000 center/cover;border:1px solid var(--line);flex:0 0 auto}
+  .item-row .meta{min-width:0;flex:1}
+  .field{margin-bottom:12px}
+  label.lbl{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:4px}
+  input,select,textarea{width:100%;background:#100d0b;border:1px solid var(--line);color:var(--ink);padding:7px 9px;border-radius:5px;font-family:inherit;font-size:13px}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .hint{font-size:11px;color:var(--muted);margin-top:4px}
+  .drop{border:2px dashed var(--line);border-radius:8px;padding:14px;text-align:center;color:var(--muted);cursor:pointer;background:#100d0b}
+  .drop.drag{border-color:var(--accent);color:var(--accent2)}
+  canvas{display:block;width:100%;max-width:280px;margin:8px auto;border:1px solid var(--line);border-radius:6px;background:#000;image-rendering:pixelated}
+  pre{margin:0;font-family:var(--mono);font-size:12px;line-height:1.45;white-space:pre;color:#d7cbbd}
+  .codebox{background:#0e0b09;border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;max-height:calc(100vh - 160px)}
+  .tag{display:inline-block;font-size:10px;padding:2px 6px;border-radius:4px;background:var(--panel2);border:1px solid var(--line);color:var(--muted);margin-right:4px}
+  .tag.on{color:var(--accent2);border-color:var(--accent)}
+  .divider{height:1px;background:var(--line);margin:14px 0}
+  .chk{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .chk input{width:auto}
+  .empty{color:var(--muted);text-align:center;padding:30px 10px;font-size:13px}
+  .pill{font-size:11px;color:var(--muted)}
+  .status{padding:6px 10px;border-radius:5px;font-size:12px;margin-top:10px;display:none}
+  .status.ok{display:block;background:#142a18;border:1px solid var(--good);color:#a9e3b1}
+  .status.err{display:block;background:#2a1512;border:1px solid var(--bad);color:#f0b3a8}
+  .tabs{display:flex;gap:4px;margin-bottom:10px}
+  .tabs button{padding:5px 10px;font-size:12px}
+  .tabs button.active{background:var(--accent);color:#1a120a;border-color:var(--accent)}
+  .seg{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:12px;background:var(--panel)}
+  .seg h3{margin:0 0 10px;font-size:12px;color:var(--accent2);text-transform:uppercase;letter-spacing:.6px}
+  a.link{color:var(--accent2)}
+  .small{font-size:11px}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#3a2f25;border-radius:6px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">KB</div>
+  <div>
+    <h1>Kitbash <span class="sub">— reskin any DayZ item · config + types builder</span></h1>
+  </div>
+  <div class="top-actions">
+    <span id="saveDot" class="small" style="align-self:center;color:var(--good);opacity:0.35;margin-right:4px" title="Autosaved to this browser">saved</span>
+    <button class="ghost" id="btnNew">New Project</button>
+    <button class="ghost" id="btnImportCpp">Import .cpp</button>
+    <button class="ghost" id="btnSaveProj">Save .json</button>
+    <button class="ghost" id="btnLoadProj">Load .json</button>
+    <button class="primary" id="btnExport">Export Mod ▸</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- LIST -->
+  <div class="col list">
+    <h2>Items</h2>
+    <button class="primary" id="btnAdd" style="width:100%;margin-bottom:12px">+ Add Item</button>
+    <div id="itemList"></div>
+  </div>
+
+  <!-- EDITOR -->
+  <div class="col editor" id="editorCol">
+    <div class="empty" id="editorEmpty">Add an item or pick one from the list to begin.</div>
+    <div id="editor" style="display:none">
+      <div class="seg">
+        <h3>Base &amp; Identity</h3>
+        <div class="field">
+          <label class="lbl">Base item</label>
+          <select id="fBase"></select>
+          <div class="hint" id="baseHint"></div>
+        </div>
+        <div id="customBaseFields" style="display:none;border:1px solid var(--line);border-radius:6px;padding:10px;margin-bottom:12px;background:#100d0b">
+          <div class="field">
+            <label class="lbl">Modded base class to inherit</label>
+            <input id="fCustomBase" spellcheck="false" placeholder="e.g. Mod_TacticalJacket_Base">
+            <div class="hint">Exact class name from the other mod. A forward declaration is emitted automatically.</div>
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label class="lbl">Data subfolder</label>
+              <select id="fCustomFolder">
+                <option>jackets</option><option>shirts</option><option>pants</option><option>vests</option>
+                <option>headgear</option><option>masks</option><option>gloves</option><option>shoes</option>
+                <option>bags</option><option>armbands</option><option value="items">items</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="lbl">Texture slots</label>
+              <input id="fCustomSlots" type="number" min="1" max="9" value="3">
+            </div>
+          </div>
+          <div class="field">
+            <label class="lbl">Required addon(s) — comma separated</label>
+            <input id="fReqAddons" spellcheck="false" placeholder="e.g. TheMod_Data, TheMod_Characters">
+            <div class="hint">The parent mod's addon name(s), added to requiredAddons so the game loads the base.</div>
+          </div>
+          <div style="display:flex;gap:16px">
+            <label class="chk small" style="margin:0"><input type="checkbox" id="fCustomCargo"> has cargo</label>
+            <label class="chk small" style="margin:0"><input type="checkbox" id="fCustomArmor"> has armor (melee/firearm)</label>
+          </div>
+        </div>
+        <div class="field">
+          <label class="lbl">Class name (must be unique, no spaces)</label>
+          <input id="fClass" spellcheck="false">
+        </div>
+        <div class="field">
+          <label class="lbl">Display name (in-game)</label>
+          <input id="fDisplay">
+        </div>
+        <div class="field">
+          <label class="lbl">Short description</label>
+          <input id="fDesc">
+        </div>
+      </div>
+
+      <div class="seg">
+        <h3>Stats</h3>
+        <div class="row2" id="cargoRow">
+          <div class="field"><label class="lbl">Cargo width</label><input id="fCargoW" type="number" min="1" max="10"></div>
+          <div class="field"><label class="lbl">Cargo height</label><input id="fCargoH" type="number" min="1" max="40"></div>
+        </div>
+        <div class="field" id="heatRow">
+          <label class="lbl">Heat isolation (thermals) — <span id="heatVal"></span></label>
+          <input id="fHeat" type="range" min="0" max="1" step="0.05">
+        </div>
+        <div class="row2" id="armorRow">
+          <div class="field"><label class="lbl">Melee armor</label><input id="fMelee" type="number" min="0" max="1" step="0.05"></div>
+          <div class="field"><label class="lbl">Firearm armor</label><input id="fFirearm" type="number" min="0" max="1" step="0.05"></div>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label class="lbl">Durability preset</label>
+            <select id="fHpPreset">
+              <option value="">Vanilla (inherit)</option>
+              <option value="200">Fragile (200)</option>
+              <option value="500">Standard (500)</option>
+              <option value="1000">Reinforced (1000)</option>
+              <option value="5000">Heavy-duty (5000)</option>
+              <option value="1000000">Indestructible (1M)</option>
+              <option value="custom">Custom…</option>
+            </select>
+          </div>
+          <div class="field"><label class="lbl">Hitpoints</label><input id="fHp" type="number" min="0" placeholder="inherit"></div>
+        </div>
+        <div class="hint">Durability overrides only <code>hitpoints</code>; visual damage states are inherited from the base item.</div>
+        <div class="chk"><input type="checkbox" id="fAdvOn"><label for="fAdvOn" class="small">Show advanced fields</label></div>
+        <div id="advFields" style="display:none">
+          <div class="row3">
+            <div class="field"><label class="lbl">Weight (g)</label><input id="fWeight" type="number" min="0"></div>
+            <div class="field"><label class="lbl">Item size W</label><input id="fSizeW" type="number" min="0"></div>
+            <div class="field"><label class="lbl">Item size H</label><input id="fSizeH" type="number" min="0"></div>
+          </div>
+          <div class="field"><label class="lbl">Visibility modifier (0–1, lower = stealthier)</label><input id="fVis" type="number" min="0" max="1" step="0.05"></div>
+          <div class="hint">Blank advanced fields are omitted from the config (item inherits the vanilla value).</div>
+        </div>
+      </div>
+
+      <div class="seg">
+        <h3>Texture</h3>
+        <div class="drop" id="drop">Click, drop, or <b>paste (Ctrl+V)</b> an image<br><span class="small">PNG / JPG — exported at the resolution below</span></div>
+        <canvas id="cv" width="256" height="256"></canvas>
+        <div id="tplBlock" style="margin:8px 0">
+          <label class="lbl">Paint-over template (vanilla UV layout)</label>
+          <div id="tplHave" style="display:none">
+            <select id="fTpl" style="margin-bottom:6px"></select>
+            <div style="display:flex;gap:6px;align-items:center">
+              <button class="ghost small" id="btnTplDl" style="flex:1">⤓ Download to paint</button>
+              <label class="chk small" style="margin:0"><input type="checkbox" id="fTplShow"> show under texture</label>
+            </div>
+          </div>
+          <div id="tplMissing" class="hint" style="display:none">
+            No templates yet. Run <code>build-templates.ps1</code> once to extract vanilla UV layouts, then reload.
+            <button class="ghost small" id="btnTplCmd" style="margin-top:6px">Copy command</button>
+          </div>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label class="lbl">Export resolution</label>
+            <select id="fRes">
+              <option value="2048">2048 × 2048 (standard)</option>
+              <option value="1024">1024 × 1024</option>
+              <option value="4096">4096 × 4096</option>
+              <option value="512">512 × 512</option>
+            </select>
+          </div>
+          <div class="field" style="display:flex;align-items:flex-end">
+            <button class="ghost danger" id="btnClearTex" style="width:100%">Remove texture</button>
+          </div>
+        </div>
+        <div class="hint" id="texInfo">No texture yet. Paint a PNG in your editor, then drop it here.</div>
+      </div>
+
+      <div class="seg">
+        <h3>Advanced / Special</h3>
+        <div class="chk"><input type="checkbox" id="fAdvItem"><label for="fAdvItem" class="small">Enable advanced mode (materials, attachments, full damage tiers)</label></div>
+        <div id="advItemFields" style="display:none">
+          <div class="field">
+            <label class="lbl">Custom material — .rvmat (glow / emissive / wetness)</label>
+            <div class="drop" id="rvmatDrop" style="padding:10px">Click or drop a <b>.rvmat</b> file<br><span class="small">referenced via hiddenSelectionsMaterials and packed alongside the texture</span></div>
+            <div class="hint" id="rvmatInfo">No material — item uses the base's default look.</div>
+            <button class="ghost small danger" id="btnClearRvmat" style="display:none;margin-top:4px">Remove material</button>
+          </div>
+          <div class="chk"><input type="checkbox" id="fFullHealth"><label for="fFullHealth" class="small" id="fullHealthLbl">Emit full damage tiers (healthLevels)</label></div>
+          <div class="field">
+            <label class="lbl">Attachments (one per line)</label>
+            <textarea id="fAtt" rows="3" spellcheck="false" placeholder="e.g. Shoulder&#10;VestGrenadeA"></textarea>
+            <div class="hint">Prefilled from the base's known slots. Leave blank for none.</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px">
+        <button class="ghost danger" id="btnDelete">Delete item</button>
+        <button class="ghost" id="btnDup">Duplicate</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- OUTPUT -->
+  <div class="col output">
+    <div class="tabs">
+      <button data-tab="config" class="active">config.cpp</button>
+      <button data-tab="types">types.xml</button>
+      <button data-tab="build">build.ps1</button>
+      <button data-tab="settings">Project</button>
+    </div>
+
+    <div id="tab-config">
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <button class="ghost" id="btnCopyCfg">Copy</button>
+        <span class="pill" id="cfgStat" style="align-self:center"></span>
+      </div>
+      <div class="codebox"><pre id="cfgOut"></pre></div>
+    </div>
+
+    <div id="tab-types" style="display:none">
+      <p class="small" style="color:var(--muted)">Central-economy loot entries so your items spawn in-game. Merge into your mission's <code>types.xml</code> (or load as a custom types file). Tune defaults in the Project tab.</p>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <button class="ghost" id="btnCopyTypes">Copy</button>
+        <span class="pill" id="typesStat" style="align-self:center"></span>
+      </div>
+      <div class="codebox"><pre id="typesOut"></pre></div>
+    </div>
+
+    <div id="tab-build" style="display:none">
+      <p class="small" style="color:var(--muted)">Run this in the exported mod folder. It auto-detects DayZ Tools, converts every PNG → PAA, and packs a signed PBO into <code>@<span class="modname"></span>/addons</code>.</p>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <button class="ghost" id="btnCopyPs">Copy</button>
+      </div>
+      <div class="codebox"><pre id="psOut"></pre></div>
+    </div>
+
+    <div id="tab-settings" style="display:none">
+      <div class="seg" id="validationSeg" style="display:none">
+        <h3>⚠ Checks</h3>
+        <div id="validationBox" class="small"></div>
+      </div>
+      <div class="seg">
+        <h3>Mod identity</h3>
+        <div class="field">
+          <label class="lbl">PBO / addon class name (folder name)</label>
+          <input id="pModName" value="MMItems">
+          <div class="hint">No spaces. This is the root path used in every texture reference.</div>
+        </div>
+        <div class="row2">
+          <div class="field"><label class="lbl">Author tag (prefix)</label><input id="pPrefix" value="mm"></div>
+          <div class="field"><label class="lbl">Author name</label><input id="pAuthor" value="Misfit Mercenaries"></div>
+        </div>
+        <div class="field">
+          <label class="lbl">Display-name brand prefix</label>
+          <input id="pBrand" value="Misfit Mercenaries - ">
+          <div class="hint">Auto-prepended to new items' display names.</div>
+        </div>
+      </div>
+      <div class="seg">
+        <h3>Build / DayZ Tools</h3>
+        <div class="field">
+          <label class="lbl">DayZ Tools Bin path (optional override)</label>
+          <input id="pToolsPath" placeholder="auto-detect from Steam">
+          <div class="hint">Leave blank to let build.ps1 search the usual Steam locations.</div>
+        </div>
+        <div class="chk"><input type="checkbox" id="pSign"><label for="pSign" class="small">Sign the PBO (generate &amp; use a bikey)</label></div>
+      </div>
+      <div class="seg">
+        <h3>Loot economy (types.xml)</h3>
+        <div class="row3">
+          <div class="field"><label class="lbl">Nominal</label><input id="eNominal" type="number" min="0"></div>
+          <div class="field"><label class="lbl">Min</label><input id="eMin" type="number" min="0"></div>
+          <div class="field"><label class="lbl">Lifetime (s)</label><input id="eLifetime" type="number" min="0"></div>
+        </div>
+        <div class="row3">
+          <div class="field"><label class="lbl">Restock</label><input id="eRestock" type="number" min="0"></div>
+          <div class="field"><label class="lbl">Cost</label><input id="eCost" type="number" min="0"></div>
+          <div class="field">
+            <label class="lbl">Category</label>
+            <select id="eCategory">
+              <option value="auto">auto (by type)</option>
+              <option value="clothes">clothes</option>
+              <option value="containers">containers</option>
+              <option value="tools">tools</option>
+              <option value="">none</option>
+            </select>
+          </div>
+        </div>
+        <div class="row2">
+          <div class="field"><label class="lbl">Usage(s) — comma</label><input id="eUsages" placeholder="Military, Town"></div>
+          <div class="field"><label class="lbl">Value tier(s) — comma</label><input id="eTiers" placeholder="Tier1, Tier2"></div>
+        </div>
+        <div style="display:flex;gap:16px">
+          <label class="chk small" style="margin:0"><input type="checkbox" id="eInclude"> include types.xml in export</label>
+          <label class="chk small" style="margin:0"><input type="checkbox" id="eSkipCrates"> skip placeable crates</label>
+        </div>
+      </div>
+      <div class="seg">
+        <h3>How export works</h3>
+        <p class="small" style="color:var(--muted);line-height:1.6">
+          <b>Export Mod</b> asks for an output folder, then writes:<br>
+          • <code>&lt;ModName&gt;/config.cpp</code><br>
+          • <code>&lt;ModName&gt;/data/&lt;category&gt;/&lt;class&gt;.png</code> for each textured item<br>
+          • <code>build.ps1</code> next to it<br>
+          Then open PowerShell there and run <code>./build.ps1</code> to produce the PBO.
+          If your browser blocks folder writing, you'll get a .zip instead.
+        </p>
+      </div>
+      <div class="status" id="expStatus"></div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept="image/*" style="display:none">
+<input type="file" id="rvmatInput" accept=".rvmat" style="display:none">
+<input type="file" id="cppInput" accept=".cpp,.txt" style="display:none">
+<input type="file" id="projInput" accept="application/json,.json" style="display:none">
+
+<script>
+/* ----------------------------- base item schema ----------------------------- */
+const BASES = [
+  // Tops
+  {cls:'Tshirt_ColorBase',label:'T-Shirt',cat:'Tops',folder:'shirts',cargo:[3,3],heat:0.7},
+  {cls:'BDUJacket',label:'BDU Jacket',cat:'Tops',folder:'jackets',cargo:[7,7],heat:0.9},
+  {cls:'M65Jacket_ColorBase',label:'M65 Jacket',cat:'Tops',folder:'jackets',cargo:[7,7],heat:0.9},
+  {cls:'FirefighterJacket_ColorBase',label:'Firefighter Jacket',cat:'Tops',folder:'jackets',cargo:[6,6],heat:0.9},
+  {cls:'ParamedicJacket_ColorBase',label:'Paramedic Jacket',cat:'Tops',folder:'jackets',cargo:[6,6],heat:0.8},
+  {cls:'QuiltedJacket_ColorBase',label:'Quilted Jacket',cat:'Tops',folder:'jackets',cargo:[6,6],heat:0.9},
+  {cls:'TrackSuitJacket_ColorBase',label:'Tracksuit Jacket',cat:'Tops',folder:'jackets',cargo:[5,5],heat:0.7},
+  {cls:'HuntingJacket_ColorBase',label:'Hunting Jacket',cat:'Tops',folder:'jackets',cargo:[6,7],heat:0.9},
+  {cls:'TacticalShirt_ColorBase',label:'Tactical Shirt',cat:'Tops',folder:'shirts',cargo:[4,4],heat:0.7},
+  {cls:'Raincoat_ColorBase',label:'Raincoat',cat:'Tops',folder:'jackets',cargo:[5,5],heat:0.6},
+  {cls:'Sweater_ColorBase',label:'Sweater',cat:'Tops',folder:'shirts',cargo:[3,3],heat:0.8},
+  // Pants
+  {cls:'BDUPants',label:'BDU Pants',cat:'Pants',folder:'pants',cargo:[7,9],heat:0.9},
+  {cls:'CargoPants_ColorBase',label:'Cargo Pants',cat:'Pants',folder:'pants',cargo:[6,8],heat:0.8},
+  {cls:'TrackSuitPants_ColorBase',label:'Tracksuit Pants',cat:'Pants',folder:'pants',cargo:[5,5],heat:0.7},
+  {cls:'ParamedicPants_ColorBase',label:'Paramedic Pants',cat:'Pants',folder:'pants',cargo:[6,6],heat:0.8},
+  {cls:'FirefightersPants_ColorBase',label:'Firefighter Pants',cat:'Pants',folder:'pants',cargo:[6,8],heat:0.9},
+  // Vests
+  {cls:'PlateCarrierVest',label:'Plate Carrier Vest',cat:'Vests',folder:'vests',cargo:[4,4],heat:0.9,armor:true},
+  {cls:'HighCapacityVest_ColorBase',label:'High Capacity Vest',cat:'Vests',folder:'vests',cargo:[5,5],heat:0.7,armor:true},
+  {cls:'UKAssVest_ColorBase',label:'UK Assault Vest',cat:'Vests',folder:'vests',cargo:[5,5],heat:0.7,armor:true},
+  // Headgear
+  {cls:'Mich2001Helmet',label:'MICH 2001 Helmet',cat:'Headgear',folder:'headgear',cargo:null,heat:0.9,armor:true},
+  {cls:'BallisticHelmet_ColorBase',label:'Ballistic Helmet',cat:'Headgear',folder:'headgear',cargo:null,heat:0.9,armor:true},
+  {cls:'TankerHelmet',label:'Tanker Helmet',cat:'Headgear',folder:'headgear',cargo:null,heat:0.8,armor:true},
+  {cls:'DirtBikeHelmet_ColorBase',label:'Dirt Bike Helmet',cat:'Headgear',folder:'headgear',cargo:null,heat:0.8,armor:true},
+  {cls:'BoonieHat_ColorBase',label:'Boonie Hat',cat:'Headgear',folder:'headgear',cargo:null,heat:0.6},
+  {cls:'BeanieHat_ColorBase',label:'Beanie',cat:'Headgear',folder:'headgear',cargo:null,heat:0.7},
+  {cls:'RadarCap_ColorBase',label:'Baseball Cap',cat:'Headgear',folder:'headgear',cargo:null,heat:0.5},
+  {cls:'Ushanka_ColorBase',label:'Ushanka',cat:'Headgear',folder:'headgear',cargo:null,heat:0.9},
+  {cls:'MilitaryBeret_ColorBase',label:'Beret',cat:'Headgear',folder:'headgear',cargo:null,heat:0.5},
+  {cls:'CowboyHat_ColorBase',label:'Cowboy Hat',cat:'Headgear',folder:'headgear',cargo:null,heat:0.5},
+  // Masks
+  {cls:'BalaclavaMask_ColorBase',label:'Balaclava',cat:'Masks',folder:'masks',cargo:null,heat:0.9},
+  {cls:'Shemag_ColorBase',label:'Shemagh',cat:'Masks',folder:'masks',cargo:null,heat:0.7,slots:5,camoMask:true},
+  {cls:'Bandana_ColorBase',label:'Bandana',cat:'Masks',folder:'masks',cargo:null,heat:0.5,slots:5,camoMask:true},
+  {cls:'GP5GasMask',label:'GP5 Gas Mask',cat:'Masks',folder:'masks',cargo:null,heat:0.6},
+  // Backpacks
+  {cls:'CoyoteBag_ColorBase',label:'Coyote Backpack',cat:'Backpacks',folder:'bags',cargo:[10,18],heat:0.9},
+  {cls:'AssaultBag_ColorBase',label:'Assault Bag',cat:'Backpacks',folder:'bags',cargo:[10,16],heat:0.8},
+  {cls:'HuntingBag',label:'Hunting Backpack',cat:'Backpacks',folder:'bags',cargo:[8,12],heat:0.8},
+  {cls:'MountainBag_ColorBase',label:'Mountain Backpack',cat:'Backpacks',folder:'bags',cargo:[10,16],heat:0.8},
+  {cls:'TaloonBag_ColorBase',label:'Taloon Backpack',cat:'Backpacks',folder:'bags',cargo:[8,14],heat:0.7},
+  {cls:'DryBag_ColorBase',label:'Dry Bag',cat:'Backpacks',folder:'bags',cargo:[8,12],heat:0.6},
+  {cls:'AliceBag_ColorBase',label:'Alice Backpack',cat:'Backpacks',folder:'bags',cargo:[10,16],heat:0.8},
+  // Gloves
+  {cls:'TacticalGloves_ColorBase',label:'Tactical Gloves',cat:'Gloves',folder:'gloves',cargo:null,heat:0.7},
+  {cls:'WoolGlovesFingerless_ColorBase',label:'Wool Gloves (Fingerless)',cat:'Gloves',folder:'gloves',cargo:null,heat:0.8},
+  // Shoes
+  {cls:'MilitaryBoots_ColorBase',label:'Military Boots',cat:'Shoes',folder:'shoes',cargo:null,heat:0.8},
+  {cls:'JungleBoots_ColorBase',label:'Jungle Boots',cat:'Shoes',folder:'shoes',cargo:null,heat:0.7},
+  // Containers / items
+  {cls:'WoodenCrate',label:'Wooden Crate (placeable)',cat:'Containers',folder:'items',cargo:[10,25],heat:null,kind:'crate',slots:1},
+  {cls:'Barrel_ColorBase',label:'Barrel',cat:'Containers',folder:'items',cargo:[10,30],heat:null},
+  {cls:'WaterproofBag_ColorBase',label:'Dry Bag / Drysack',cat:'Containers',folder:'items',cargo:[10,12],heat:null},
+  {cls:'AmmoBox',label:'Ammo Box',cat:'Containers',folder:'items',cargo:[10,12],heat:null,zbytek:true},
+  {cls:'SmallProtectorCase',label:'Protector Case',cat:'Containers',folder:'items',cargo:[10,6],heat:null,slots:1,zbytek:true,protector:true},
+  // Armband (needs ClothingTypes + camo selections)
+  {cls:'Armband_ColorBase',label:'Armband',cat:'Armbands',folder:'armbands',cargo:[4,4],heat:0.7,armband:true},
+  // auto-extracted from vanilla DayZ configs (parent==Clothing)
+  // Tops
+  {cls:"Blouse_ColorBase",label:"Blouse",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"BomberJacket_ColorBase",label:"Bomber Jacket",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"BushlatPoliceJacket_ColorBase",label:"Bushlat Police Jacket",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"ChernarusSportShirt",label:"Chernarus Sport Shirt",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"DenimJacket",label:"Denim Jacket",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"DownJacket_ColorBase",label:"Down Jacket",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"GorkaEJacket_ColorBase",label:"Gorka E Jacket",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"GulagJacket_ColorBase",label:"Gulag Jacket",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"HikingJacket_ColorBase",label:"Hiking Jacket",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"Hoodie_ColorBase",label:"Hoodie",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"JumpsuitJacket_ColorBase",label:"Jumpsuit Jacket",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"LabCoat",label:"Lab Coat",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"LeatherJacket_ColorBase",label:"Leather Jacket",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"LeatherShirt_ColorBase",label:"Leather Shirt",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"ManSuit_ColorBase",label:"Man Suit",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"MedicalScrubsShirt_ColorBase",label:"Medical Scrubs Shirt",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"MilitarySweater_ColorBase",label:"Military Sweater",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"MiniDress_ColorBase",label:"Mini Dress",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"NurseDress_ColorBase",label:"Nurse Dress",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"OMKJacket_ColorBase",label:"OMK Jacket",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"PilotJacket_ColorBase",label:"Pilot Jacket",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"PoliceJacket",label:"Police Jacket",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"PoliceJacketOrel",label:"Police Jacket Orel",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"PrisonUniformJacket",label:"Prison Uniform Jacket",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"RidersJacket_ColorBase",label:"Riders Jacket",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"Shirt_ColorBase",label:"Shirt",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"TTsKOJacket_ColorBase",label:"TTsKO Jacket",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"TelnyashkaShirt",label:"Telnyashka Shirt",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"USMCJacket_ColorBase",label:"USMC Jacket",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"WinterMilitaryCoat_ColorBase",label:"Winter Military Coat",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"WomanSuit_ColorBase",label:"Woman Suit",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  {cls:"WoolCoat_ColorBase",label:"Wool Coat",cat:"Tops",folder:"tops",cargo:null,heat:null},
+  // Pants
+  {cls:"Breeches_ColorBase",label:"Breeches",cat:"Pants",folder:"pants",cargo:null,heat:null},
+  {cls:"CanvasPantsMidi_ColorBase",label:"Canvas Pants Midi",cat:"Pants",folder:"pants",cargo:null,heat:null},
+  {cls:"CanvasPants_ColorBase",label:"Canvas Pants",cat:"Pants",folder:"pants",cargo:null,heat:null},
+  {cls:"GorkaPants_ColorBase",label:"Gorka Pants",cat:"Pants",folder:"pants",cargo:null,heat:null},
+  {cls:"HunterPants_ColorBase",label:"Hunter Pants",cat:"Pants",folder:"pants",cargo:null,heat:null},
+  {cls:"Jeans_ColorBase",label:"Jeans",cat:"Pants",folder:"pants",cargo:null,heat:null},
+  {cls:"JumpsuitPants_ColorBase",label:"Jumpsuit Pants",cat:"Pants",folder:"pants",cargo:null,heat:null},
+  {cls:"LeatherPants_ColorBase",label:"Leather Pants",cat:"Pants",folder:"pants",cargo:null,heat:null},
+  {cls:"MedicalScrubsPants_ColorBase",label:"Medical Scrubs Pants",cat:"Pants",folder:"pants",cargo:null,heat:null},
+  {cls:"OMKPants_ColorBase",label:"OMK Pants",cat:"Pants",folder:"pants",cargo:null,heat:null},
+  {cls:"PolicePants",label:"Police Pants",cat:"Pants",folder:"pants",cargo:null,heat:null},
+  {cls:"PolicePantsOrel",label:"Police Pants Orel",cat:"Pants",folder:"pants",cargo:null,heat:null},
+  {cls:"PrisonUniformPants",label:"Prison Uniform Pants",cat:"Pants",folder:"pants",cargo:null,heat:null},
+  {cls:"ShortJeans_ColorBase",label:"Short Jeans",cat:"Pants",folder:"pants",cargo:null,heat:null},
+  {cls:"Skirt_ColorBase",label:"Skirt",cat:"Pants",folder:"pants",cargo:null,heat:null},
+  {cls:"SlacksPants_ColorBase",label:"Slacks Pants",cat:"Pants",folder:"pants",cargo:null,heat:null},
+  {cls:"USMCPants_ColorBase",label:"USMC Pants",cat:"Pants",folder:"pants",cargo:null,heat:null},
+  // Vests
+  {cls:"ChestHolster",label:"Chest Holster",cat:"Vests",folder:"vests",cargo:null,heat:null,armor:true},
+  {cls:"Chestplate",label:"Chestplate",cat:"Vests",folder:"vests",cargo:null,heat:null,armor:true},
+  {cls:"HuntingVest",label:"Hunting Vest",cat:"Vests",folder:"vests",cargo:null,heat:null,armor:true},
+  {cls:"LeatherStorageVest_ColorBase",label:"Leather Storage Vest",cat:"Vests",folder:"vests",cargo:null,heat:null,armor:true},
+  {cls:"PlateCarrierHolster",label:"Plate Carrier Holster",cat:"Vests",folder:"vests",cargo:null,heat:null,armor:true},
+  {cls:"PoliceVest",label:"Police Vest",cat:"Vests",folder:"vests",cargo:null,heat:null,armor:true},
+  {cls:"PressVest_ColorBase",label:"Press Vest",cat:"Vests",folder:"vests",cargo:null,heat:null,armor:true},
+  {cls:"ReflexVest",label:"Reflex Vest",cat:"Vests",folder:"vests",cargo:null,heat:null,armor:true},
+  {cls:"SmershVest",label:"Smersh Vest",cat:"Vests",folder:"vests",cargo:null,heat:null,armor:true},
+  // Headgear
+  {cls:"BaseballCap_ColorBase",label:"Baseball Cap",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"BudenovkaHat_ColorBase",label:"Budenovka Hat",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"ChristmasHeadband_ColorBase",label:"Christmas Headband",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"ConstructionHelmet_ColorBase",label:"Construction Helmet",cat:"Headgear",folder:"headgear",cargo:null,heat:null,armor:true},
+  {cls:"DarkMotoHelmet_ColorBase",label:"Dark Moto Helmet",cat:"Headgear",folder:"headgear",cargo:null,heat:null,armor:true},
+  {cls:"DirtBikeHelmet_Mouthguard",label:"Dirt Bike Helmet Mouthguard",cat:"Headgear",folder:"headgear",cargo:null,heat:null,armor:true},
+  {cls:"DirtBikeHelmet_Visor",label:"Dirt Bike Helmet Visor",cat:"Headgear",folder:"headgear",cargo:null,heat:null,armor:true},
+  {cls:"FirefightersHelmet_ColorBase",label:"Firefighters Helmet",cat:"Headgear",folder:"headgear",cargo:null,heat:null,armor:true},
+  {cls:"FlatCap_ColorBase",label:"Flat Cap",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"GorkaHelmet",label:"Gorka Helmet",cat:"Headgear",folder:"headgear",cargo:null,heat:null,armor:true},
+  {cls:"Headdress_Colorbase",label:"Headdress",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"Headdress_Fox",label:"Headdress Fox",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"HockeyHelmet_ColorBase",label:"Hockey Helmet",cat:"Headgear",folder:"headgear",cargo:null,heat:null,armor:true},
+  {cls:"LeatherHat_ColorBase",label:"Leather Hat",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"MedicalScrubsHat_ColorBase",label:"Medical Scrubs Hat",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"MorozkoHat",label:"Morozko Hat",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"MotoHelmet_ColorBase",label:"Moto Helmet",cat:"Headgear",folder:"headgear",cargo:null,heat:null,armor:true},
+  {cls:"OKZKCap_ColorBase",label:"OKZK Cap",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"OfficerHat",label:"Officer Hat",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"PetushokHat_ColorBase",label:"Petushok Hat",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"PilotkaCap",label:"Pilotka Cap",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"PoliceCap",label:"Police Cap",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"PrisonerCap",label:"Prisoner Cap",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"PumpkinHelmet",label:"Pumpkin Helmet",cat:"Headgear",folder:"headgear",cargo:null,heat:null,armor:true},
+  {cls:"SantasHat",label:"Santas Hat",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"SherpaHat_ColorBase",label:"Sherpa Hat",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"SkateHelmet_ColorBase",label:"Skate Helmet",cat:"Headgear",folder:"headgear",cargo:null,heat:null,armor:true},
+  {cls:"SnowstormUshanka_ColorBase",label:"Snowstorm Ushanka",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"Ssh68Helmet",label:"Ssh68 Helmet",cat:"Headgear",folder:"headgear",cargo:null,heat:null,armor:true},
+  {cls:"WeldingMask",label:"Welding Mask",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"WinterCoif_ColorBase",label:"Winter Coif",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"WitchHat",label:"Witch Hat",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"WitchHoodCoif_ColorBase",label:"Witch Hood Coif",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"WitchHood_ColorBase",label:"Witch Hood",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  {cls:"ZSh3PilotHelmet",label:"ZSh3 Pilot Helmet",cat:"Headgear",folder:"headgear",cargo:null,heat:null,armor:true},
+  {cls:"ZmijovkaCap_ColorBase",label:"Zmijovka Cap",cat:"Headgear",folder:"headgear",cargo:null,heat:null},
+  // Masks
+  {cls:"AirborneMask",label:"Airborne Mask",cat:"Masks",folder:"masks",cargo:null,heat:null},
+  {cls:"Balaclava3Holes_ColorBase",label:"Balaclava 3 Holes",cat:"Masks",folder:"masks",cargo:null,heat:null},
+  {cls:"CrookedNose",label:"Crooked Nose",cat:"Masks",folder:"masks",cargo:null,heat:null},
+  {cls:"GasMask",label:"Gas Mask",cat:"Masks",folder:"masks",cargo:null,heat:null},
+  {cls:"HockeyMask",label:"Hockey Mask",cat:"Masks",folder:"masks",cargo:null,heat:null},
+  {cls:"MimeMask_Male",label:"Mime Mask",cat:"Masks",folder:"masks",cargo:null,heat:null},
+  {cls:"MouthRag",label:"Mouth Rag",cat:"Masks",folder:"masks",cargo:null,heat:null},
+  {cls:"NioshFaceMask",label:"Niosh Face Mask",cat:"Masks",folder:"masks",cargo:null,heat:null},
+  {cls:"PaydayMask_ColorBase",label:"Payday Mask",cat:"Masks",folder:"masks",cargo:null,heat:null},
+  {cls:"SantasBeard",label:"Santas Beard",cat:"Masks",folder:"masks",cargo:null,heat:null},
+  {cls:"SurgicalMask",label:"Surgical Mask",cat:"Masks",folder:"masks",cargo:null,heat:null},
+  // Gloves
+  {cls:"LeatherGloves_ColorBase",label:"Leather Gloves",cat:"Gloves",folder:"gloves",cargo:null,heat:null},
+  {cls:"NBCGloves_ColorBase",label:"NBC Gloves",cat:"Gloves",folder:"gloves",cargo:null,heat:null},
+  {cls:"OMNOGloves_ColorBase",label:"OMNO Gloves",cat:"Gloves",folder:"gloves",cargo:null,heat:null},
+  {cls:"PaddedGloves_ColorBase",label:"Padded Gloves",cat:"Gloves",folder:"gloves",cargo:null,heat:null},
+  {cls:"SkiGloves_ColorBase",label:"Ski Gloves",cat:"Gloves",folder:"gloves",cargo:null,heat:null},
+  {cls:"SurgicalGloves_ColorBase",label:"Surgical Gloves",cat:"Gloves",folder:"gloves",cargo:null,heat:null},
+  {cls:"WoolGloves_ColorBase",label:"Wool Gloves",cat:"Gloves",folder:"gloves",cargo:null,heat:null},
+  {cls:"WorkingGloves_ColorBase",label:"Working Gloves",cat:"Gloves",folder:"gloves",cargo:null,heat:null},
+  // Shoes
+  {cls:"AthleticShoes_ColorBase",label:"Athletic Shoes",cat:"Shoes",folder:"shoes",cargo:null,heat:null},
+  {cls:"Ballerinas_ColorBase",label:"Ballerinas",cat:"Shoes",folder:"shoes",cargo:null,heat:null},
+  {cls:"ColdOperationBoots_ColorBase",label:"Cold Operation Boots",cat:"Shoes",folder:"shoes",cargo:null,heat:null},
+  {cls:"CombatBoots_ColorBase",label:"Combat Boots",cat:"Shoes",folder:"shoes",cargo:null,heat:null},
+  {cls:"DressShoes_ColorBase",label:"Dress Shoes",cat:"Shoes",folder:"shoes",cargo:null,heat:null},
+  {cls:"HikingBootsLow_ColorBase",label:"Hiking Boots Low",cat:"Shoes",folder:"shoes",cargo:null,heat:null},
+  {cls:"HikingBoots_ColorBase",label:"Hiking Boots",cat:"Shoes",folder:"shoes",cargo:null,heat:null},
+  {cls:"JoggingShoes_ColorBase",label:"Jogging Shoes",cat:"Shoes",folder:"shoes",cargo:null,heat:null},
+  {cls:"LeatherShoes_ColorBase",label:"Leather Shoes",cat:"Shoes",folder:"shoes",cargo:null,heat:null},
+  {cls:"MedievalBoots",label:"Medieval Boots",cat:"Shoes",folder:"shoes",cargo:null,heat:null},
+  {cls:"Sneakers_ColorBase",label:"Sneakers",cat:"Shoes",folder:"shoes",cargo:null,heat:null},
+  {cls:"TraditionalBoots_ColorBase",label:"Traditional Boots",cat:"Shoes",folder:"shoes",cargo:null,heat:null},
+  {cls:"Wellies_ColorBase",label:"Wellies",cat:"Shoes",folder:"shoes",cargo:null,heat:null},
+  {cls:"WorkingBoots_ColorBase",label:"Working Boots",cat:"Shoes",folder:"shoes",cargo:null,heat:null},
+  // Backpacks
+  {cls:"ArmyPouch_ColorBase",label:"Army Pouch",cat:"Backpacks",folder:"backpacks",cargo:null,heat:null},
+  {cls:"Attack2Bag_ColorBase",label:"Attack Bag",cat:"Backpacks",folder:"backpacks",cargo:null,heat:null},
+  {cls:"CanvasBag_ColorBase",label:"Canvas Bag",cat:"Backpacks",folder:"backpacks",cargo:null,heat:null},
+  {cls:"ChildBag_ColorBase",label:"Child Bag",cat:"Backpacks",folder:"backpacks",cargo:null,heat:null},
+  {cls:"CourierBag",label:"Courier Bag",cat:"Backpacks",folder:"backpacks",cargo:null,heat:null},
+  {cls:"DrysackBag_ColorBase",label:"Drysack Bag",cat:"Backpacks",folder:"backpacks",cargo:null,heat:null},
+  {cls:"DuffelBagSmall_ColorBase",label:"Duffel Bag Small",cat:"Backpacks",folder:"backpacks",cargo:null,heat:null},
+  {cls:"FurCourierBag",label:"Fur Courier Bag",cat:"Backpacks",folder:"backpacks",cargo:null,heat:null},
+  {cls:"LeatherSack_ColorBase",label:"Leather Sack",cat:"Backpacks",folder:"backpacks",cargo:null,heat:null},
+  {cls:"SlingBag_ColorBase",label:"Sling Bag",cat:"Backpacks",folder:"backpacks",cargo:null,heat:null},
+  {cls:"SmershBag",label:"Smersh Bag",cat:"Backpacks",folder:"backpacks",cargo:null,heat:null},
+  {cls:"TortillaBag",label:"Tortilla Bag",cat:"Backpacks",folder:"backpacks",cargo:null,heat:null},
+  // Belts
+  {cls:"CivilianBelt",label:"Civilian Belt",cat:"Belts",folder:"belts",cargo:null,heat:null},
+  {cls:"HipPack_ColorBase",label:"Hip Pack",cat:"Belts",folder:"belts",cargo:null,heat:null},
+  {cls:"LeatherBelt_ColorBase",label:"Leather Belt",cat:"Belts",folder:"belts",cargo:null,heat:null},
+  {cls:"MilitaryBelt",label:"Military Belt",cat:"Belts",folder:"belts",cargo:null,heat:null},
+  {cls:"RopeBelt",label:"Rope Belt",cat:"Belts",folder:"belts",cargo:null,heat:null},
+  // Glasses
+  {cls:"AviatorGlasses",label:"Aviator Glasses",cat:"Glasses",folder:"glasses",cargo:null,heat:null},
+  {cls:"DesignerGlasses",label:"Designer Glasses",cat:"Glasses",folder:"glasses",cargo:null,heat:null},
+  {cls:"EyeMask_ColorBase",label:"Eye Mask",cat:"Glasses",folder:"glasses",cargo:null,heat:null},
+  {cls:"SkiGoggles_ColorBase",label:"Ski Goggles",cat:"Glasses",folder:"glasses",cargo:null,heat:null},
+  {cls:"SportGlasses_ColorBase",label:"Sport Glasses",cat:"Glasses",folder:"glasses",cargo:null,heat:null},
+  {cls:"TacticalGoggles",label:"Tactical Goggles",cat:"Glasses",folder:"glasses",cargo:null,heat:null},
+  {cls:"ThickFramesGlasses",label:"Thick Frames Glasses",cat:"Glasses",folder:"glasses",cargo:null,heat:null},
+  {cls:"ThinFramesGlasses",label:"Thin Frames Glasses",cat:"Glasses",folder:"glasses",cargo:null,heat:null},
+];
+const BASE_BY_CLS = Object.fromEntries(BASES.map(b=>[b.cls,b]));
+
+const REQUIRED_ADDONS = ['DZ_Characters','DZ_Characters_Backpacks','DZ_Characters_Pants','DZ_Characters_Vests',
+  'DZ_Characters_Tops','DZ_Characters_Masks','DZ_Characters_Headgear','DZ_Gear_Camping','DZ_Gear_Crafting',
+  'DZ_Gear_Tools','DZ_Gear_Containers','DZ_Data'];
+
+const ARMBAND_SELECTIONS = ['camoGround','camoFemale_big_a','camoFemale_big_b','camoFemale_small_a',
+  'camoFemale_small_b','camoMale_big_a','camoMale_big_b','camoMale_small_a','camoMale_small_b'];
+const CAMO_MASK_SELECTIONS = ['camoGround','camoMale_H','camoMale_M','camoFemale_H','camoFemale_M'];
+
+/* advanced/"Special" profiles — seeded from the proven Valeyria/DemonicEwok items.
+   sel = hiddenSelections needed for materials to bind; att = attachments;
+   inv/info/rot = backpack wiring; roots = vanilla rvmat roots for full damage tiers
+   (only set where confirmed from the working config — others fall back to hitpoints-only). */
+const ADV_PROFILES = {
+  PlateCarrierVest:{sel:['camoGround','camoMale','camoFemale'],att:['Shoulder','VestGrenadeA','VestGrenadeB','VestGrenadeC','VestGrenadeD'],roots:['DZ\\characters\\vests\\data\\ballisticvest']},
+  HighCapacityVest_ColorBase:{sel:['camoGround','camoMale','camoFemale'],att:['Shoulder']},
+  UKAssVest_ColorBase:{sel:['camoGround','camoMale','camoFemale'],att:['Shoulder']},
+  CargoPants_ColorBase:{sel:['camoGround','camoMale','camoFemale'],roots:['DZ\\characters\\pants\\Data\\CargoPants','DZ\\characters\\pants\\Data\\CargoPants_g']},
+  FirefightersPants_ColorBase:{sel:['camoGround','camoMale','camoFemale'],roots:['DZ\\characters\\pants\\Data\\CargoPants','DZ\\characters\\pants\\Data\\CargoPants_g']},
+  Tshirt_ColorBase:{roots:['DZ\\characters\\tops\\Data\\tshirt','DZ\\characters\\tops\\Data\\tshirt_ground']},
+  AssaultBag_ColorBase:{sel:['zbytek'],att:['Shoulder','Body','Legs','ChemLight','Headgear','Mask','Gloves','Feet'],inv:['Back'],info:['Clothing','Back'],rot:16,roots:['DZ\\Characters\\backpacks\\data\\boulder_m53']},
+  HandsCover_Improvised:{roots:['DZ\\Characters\\gloves\\data\\WoolGloves']},
+  WoolGlovesFingerless_ColorBase:{roots:['DZ\\Characters\\gloves\\data\\WoolGloves']},
+  Shemag_ColorBase:{sel:['camoGround','camoMale_H','camoMale_M','camoFemale_H','camoFemale_M'],roots:['DZ\\characters\\headgear\\data\\BandanaH']},
+  Bandana_ColorBase:{sel:['camoGround','camoMale_H','camoMale_M','camoFemale_H','camoFemale_M'],roots:['DZ\\characters\\headgear\\data\\BandanaH']},
+  JungleBoots_ColorBase:{roots:['DZ\\characters\\shoes\\Data\\JungleBoots']},
+  Mich2001Helmet:{sel:['camoGround','camoMale','camoFemale'],att:['NVG','helmetFlashlight'],roots:['DZ\\characters\\headgear\\data\\mich2001','DZ\\characters\\headgear\\data\\mich2001_rail']},
+  GP5GasMask:{sel:['camoGround','camoMale','camoFemale'],roots:['DZ\\characters\\masks\\data\\GP5GasMask']},
+  CowboyHat_ColorBase:{sel:['camoGround','camoMale','camoFemale'],roots:['DZ\\characters\\headgear\\data\\CowboyHat']},
+};
+
+/* paint-over templates (populated by templates/index.json from build-templates.ps1) */
+let TEMPLATES = null;            // { bucket: [filename,...] }
+const TPL_CMD = 'powershell -ExecutionPolicy Bypass -File .\\build-templates.ps1';
+const FOLDER_BUCKET = {shirts:'tops',jackets:'tops',armbands:'tops',tops:'tops',pants:'pants',vests:'vests',
+  headgear:'headgear',masks:'masks',gloves:'gloves',shoes:'shoes',bags:'backpacks',backpacks:'backpacks',items:'items'};
+/* resolve a base descriptor for any item — vanilla (from schema) or custom/modded (from item fields) */
+function meta(it){
+  const b=BASE_BY_CLS[it.base];
+  if(b) return b;
+  return {cls:it.base,label:it.base||'(set base class)',cat:'Custom',folder:it.folder||'items',
+    cargo:(it.cargoW!=null?[it.cargoW,it.cargoH]:null),heat:it.heat,armor:!!it.cArmor,slots:it.cSlots||3,custom:true};
+}
+function bucketFor(it){ const m=meta(it); return FOLDER_BUCKET[m.folder]||null; }
+const _tplCache={};
+function loadTplImage(bucket,file){
+  const key=bucket+'/'+file;
+  if(!_tplCache[key]){ const img=new Image(); img.src='templates/'+key; _tplCache[key]=img; }
+  return _tplCache[key];
+}
+function autoTpl(it){
+  const bucket=bucketFor(it); if(!TEMPLATES||!bucket||!TEMPLATES[bucket]) return null;
+  const root=it.base.replace(/_ColorBase$/,'').replace(/Helmet$/,'').toLowerCase();
+  const list=TEMPLATES[bucket];
+  // score by shared leading characters with the base root
+  let best=null,bestScore=-1;
+  for(const f of list){ const n=f.toLowerCase();
+    let sc=0; for(let i=0;i<Math.min(root.length,n.length);i++){ if(root[i]===n[i])sc++; else break; }
+    if(root.length>=4 && n.includes(root.slice(0,Math.min(6,root.length)))) sc+=5;
+    if(n===root+'_co.png') sc+=10;                 // exact plain match wins outright
+    // prefer the plainer (shorter) filename on ties
+    if(sc>bestScore || (sc===bestScore && best && n.length<best.length)){ bestScore=sc; best=f; } }
+  return bestScore>=3?best:null;
+}
+
+/* ----------------------------- state ----------------------------- */
+let proj = newProject();
+let activeId = null;
+
+function newProject(){
+  return {
+    modName:'MMItems', prefix:'mm', author:'Misfit Mercenaries',
+    brand:'Misfit Mercenaries - ', toolsPath:'', sign:false,
+    econ:{ nominal:5, min:2, lifetime:10800, restock:0, cost:100, category:'auto',
+           usages:'Military, Town', tiers:'', include:false, skipCrates:true,
+           flags:{count_in_cargo:0,count_in_hoarder:0,count_in_map:1,count_in_player:0,crafted:0,deloot:0} },
+    items:[]
+  };
+}
+function uid(){ return 'i'+Math.random().toString(36).slice(2,9); }
+
+function defaultItem(baseCls){
+  const isCustom = baseCls==='__custom__';
+  const b = isCustom ? {cls:'',label:'Custom Item',folder:'items',cargo:null,heat:0.7,slots:3} : (BASE_BY_CLS[baseCls] || BASES[0]);
+  const it = {
+    id:uid(), base:b.cls,
+    cls:nextClassName(isCustom?{cls:'custom_item'}:b),
+    display:(proj.brand||'')+(isCustom?'Custom Item':b.label),
+    desc:'Custom Gear',
+    cargoW:b.cargo?b.cargo[0]:null, cargoH:b.cargo?b.cargo[1]:null,
+    heat:b.heat, melee:b.armor?0.9:null, firearm:b.armor?0.9:null,
+    weight:null, sizeW:null, sizeH:null, vis:null,
+    hp:null,                 // durability hitpoints (null = inherit vanilla)
+    tpl:null, tplShow:true,  // paint-over template underlay
+    adv:false,               // advanced/Special mode
+    rvmat:null,              // {name, b64} custom material (glow etc.)
+    fullHealth:false,        // emit full damage-tier healthLevels
+    att:null,                // attachments override (array) — null = use profile default
+    customBase:false,        // modded/custom base class
+    folder:null,             // data subfolder for custom base
+    reqAddons:[],            // extra requiredAddons for custom base's parent mod
+    cArmor:false, cSlots:3,  // custom base: has armor? texture slot count
+    res:2048, tex:null       // tex = dataURL (PNG)
+  };
+  if(isCustom){ it.customBase=true; it.folder='items'; }
+  return it;
+}
+function nextClassName(b){
+  const root = b.cls.replace(/_ColorBase$/,'').replace(/Helmet$/,'').toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
+  let n=1, name;
+  do{ name = root+'_'+(proj.prefix||'mm')+'_'+String(n).padStart(2,'0'); n++; }
+  while(proj.items.some(it=>it.cls===name));
+  return name;
+}
+
+/* ----------------------------- DOM refs ----------------------------- */
+const $ = id=>document.getElementById(id);
+const itemList=$('itemList'), editor=$('editor'), editorEmpty=$('editorEmpty');
+
+/* base dropdown grouped by category */
+(function buildBaseSelect(){
+  const sel=$('fBase'); const cats=[...new Set(BASES.map(b=>b.cat))];
+  cats.forEach(c=>{
+    const og=document.createElement('optgroup'); og.label=c;
+    BASES.filter(b=>b.cat===c).forEach(b=>{
+      const o=document.createElement('option'); o.value=b.cls; o.textContent=b.label; og.appendChild(o);
+    });
+    sel.appendChild(og);
+  });
+  const og=document.createElement('optgroup'); og.label='Modded';
+  const o=document.createElement('option'); o.value='__custom__'; o.textContent='＋ Custom / modded base…'; og.appendChild(o);
+  sel.appendChild(og);
+})();
+
+/* ----------------------------- rendering ----------------------------- */
+function renderList(){
+  itemList.innerHTML='';
+  if(!proj.items.length){ itemList.innerHTML='<div class="empty small">No items yet.</div>'; }
+  proj.items.forEach(it=>{
+    const b=meta(it);
+    const row=document.createElement('div');
+    row.className='item-row'+(it.id===activeId?' active':'');
+    row.innerHTML=`<div class="thumb" style="${it.tex?`background-image:url('${it.tex}')`:''}"></div>
+      <div class="meta"><div class="nm">${esc(it.display||it.cls)}</div>
+      <div class="bs">${esc(b.label)} · ${it.tex?'<span style="color:var(--good)">tex ✓</span>':'<span style="color:var(--muted)">no tex</span>'}</div></div>`;
+    row.onclick=()=>{ activeId=it.id; renderAll(); };
+    itemList.appendChild(row);
+  });
+}
+
+function current(){ return proj.items.find(i=>i.id===activeId); }
+
+function renderEditor(){
+  const it=current();
+  if(!it){ editor.style.display='none'; editorEmpty.style.display='block'; return; }
+  editor.style.display='block'; editorEmpty.style.display='none';
+  const b=meta(it);
+  $('fBase').value = it.customBase ? '__custom__' : it.base;
+  $('baseHint').textContent = `${b.cat||''} → data/${b.folder||'items'}/  ·  base class: ${it.base||'(none set)'}`;
+  // custom/modded base fields
+  $('customBaseFields').style.display = it.customBase?'block':'none';
+  if(it.customBase){
+    $('fCustomBase').value=it.base||'';
+    $('fCustomFolder').value=it.folder||'items';
+    $('fCustomSlots').value=it.cSlots||3;
+    $('fReqAddons').value=(it.reqAddons||[]).join(', ');
+    $('fCustomCargo').checked=it.cargoW!=null;
+    $('fCustomArmor').checked=!!it.cArmor;
+  }
+  $('fClass').value=it.cls;
+  $('fDisplay').value=it.display;
+  $('fDesc').value=it.desc;
+  // cargo
+  $('cargoRow').style.display = (it.cargoW!=null)?'grid':'none';
+  if(it.cargoW!=null){ $('fCargoW').value=it.cargoW; $('fCargoH').value=it.cargoH; }
+  // heat (hidden for containers where it doesn't apply)
+  $('heatRow').style.display = (it.heat==null && meta(it).heat==null) ? 'none' : 'block';
+  $('fHeat').value=it.heat??0; $('heatVal').textContent=Number(it.heat??0).toFixed(2);
+  // armor
+  $('armorRow').style.display = b.armor?'grid':'none';
+  if(b.armor){ $('fMelee').value=it.melee??0.9; $('fFirearm').value=it.firearm??0.9; }
+  // durability
+  $('fHp').value=it.hp??'';
+  $('fHpPreset').value = (it.hp==null||it.hp==='') ? '' :
+    (['200','500','1000','5000','1000000'].includes(String(it.hp)) ? String(it.hp) : 'custom');
+  // advanced
+  $('fWeight').value=it.weight??''; $('fSizeW').value=it.sizeW??''; $('fSizeH').value=it.sizeH??''; $('fVis').value=it.vis??'';
+  $('fRes').value=it.res;
+  renderTplPicker(it);
+  // advanced
+  const prof=ADV_PROFILES[it.base]||{};
+  $('fAdvItem').checked=!!it.adv;
+  $('advItemFields').style.display=it.adv?'block':'none';
+  $('rvmatInfo').textContent = it.rvmat ? `Material: ${it.rvmat.name} → exports as ${it.cls}.rvmat` : 'No material — item uses the base’s default look.';
+  $('btnClearRvmat').style.display = it.rvmat?'inline-block':'none';
+  $('fFullHealth').checked=!!it.fullHealth;
+  $('fFullHealth').disabled=!prof.roots;
+  $('fullHealthLbl').textContent = prof.roots ? 'Emit full damage tiers (healthLevels)' : 'Full damage tiers — n/a for this base (uses hitpoints only)';
+  $('fullHealthLbl').style.opacity = prof.roots?'1':'0.5';
+  $('fAtt').value = (it.att!=null ? it.att : (prof.att||[])).join('\n');
+  drawTex(it);
+  $('texInfo').textContent = it.tex ? `Texture loaded · exports as ${it.cls}.png (${it.res}×${it.res})` : 'No texture yet. Paint a PNG in your editor, then drop it here.';
+}
+
+function renderTplPicker(it){
+  const bucket=bucketFor(it);
+  const have = TEMPLATES && bucket && TEMPLATES[bucket] && TEMPLATES[bucket].length;
+  $('tplHave').style.display = have?'block':'none';
+  $('tplMissing').style.display = have?'none':'block';
+  if(!have) return;
+  if(it.tpl==null) it.tpl=autoTpl(it)||'';   // auto-match once per item
+  const sel=$('fTpl'); sel.innerHTML='<option value="">— none —</option>';
+  TEMPLATES[bucket].forEach(f=>{ const o=document.createElement('option'); o.value=f; o.textContent=f.replace(/_co\.png$/i,''); sel.appendChild(o); });
+  sel.value=it.tpl||'';
+  $('fTplShow').checked=!!it.tplShow;
+}
+
+function drawTex(it){
+  const cv=$('cv'), ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
+  const bucket=bucketFor(it);
+  const tplImg=(it.tpl && it.tplShow && bucket) ? loadTplImage(bucket,it.tpl) : null;
+  let texImg=null;
+  if(it.tex){ if(drawTex._src!==it.tex){ drawTex._img=new Image(); drawTex._img.src=it.tex; drawTex._src=it.tex; } texImg=drawTex._img; }
+  function paint(){
+    ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
+    if(tplImg&&tplImg.complete&&tplImg.naturalWidth){ ctx.globalAlpha=texImg?0.5:1; ctx.drawImage(tplImg,0,0,W,H); ctx.globalAlpha=1; }
+    if(texImg&&texImg.complete&&texImg.naturalWidth){ ctx.globalAlpha=tplImg?0.82:1; ctx.drawImage(texImg,0,0,W,H); ctx.globalAlpha=1; }
+    if(!(tplImg&&tplImg.naturalWidth)&&!(texImg&&texImg.naturalWidth)){ ctx.fillStyle='#5a4d40';ctx.font='12px sans-serif';ctx.textAlign='center';ctx.fillText('no texture',W/2,H/2); }
+  }
+  paint();
+  if(tplImg&&!tplImg.complete) tplImg.addEventListener('load',paint,{once:true});
+  if(texImg&&!texImg.complete) texImg.addEventListener('load',paint,{once:true});
+}
+
+function validate(){
+  const warns=[]; const seen={}; const noTex=[];
+  if(!proj.modName||!proj.modName.trim()) warns.push({sev:'err',msg:'Mod name (Project tab) is empty.'});
+  proj.items.forEach((it,i)=>{
+    const label=esc(it.display||it.cls||('item '+(i+1)));
+    if(!it.cls||!it.cls.trim()) warns.push({sev:'err',msg:`${label}: class name is empty.`});
+    else if(seen[it.cls]) warns.push({sev:'err',msg:`Duplicate class name <code>${esc(it.cls)}</code>.`});
+    else seen[it.cls]=true;
+    if(it.customBase&&(!it.base||!it.base.trim())) warns.push({sev:'err',msg:`${label}: modded base class not set.`});
+    if(it.customBase&&(!it.reqAddons||!it.reqAddons.length)) warns.push({sev:'warn',msg:`${label}: no required addon for the modded base — the game may fail to load its parent.`});
+    if(!it.tex&&meta(it).kind!=='crate') noTex.push(it.cls||label);
+  });
+  if(noTex.length===1) warns.push({sev:'warn',msg:`${esc(noTex[0])}: no texture attached.`});
+  else if(noTex.length>1) warns.push({sev:'warn',msg:`${noTex.length} items have no texture attached (re-attach before export): <code>${esc(noTex.slice(0,6).join(', '))}${noTex.length>6?', …':''}</code>`});
+  return warns;
+}
+function renderValidation(){
+  const w=validate();
+  $('validationSeg').style.display=w.length?'block':'none';
+  $('validationBox').innerHTML = w.map(x=>`<div style="color:${x.sev==='err'?'var(--bad)':'var(--accent2)'};margin:3px 0">${x.sev==='err'?'✖':'⚠'} ${x.msg}</div>`).join('');
+}
+function renderOutputs(){
+  $('cfgOut').textContent=genConfig();
+  $('typesOut').textContent=genTypes();
+  $('psOut').textContent=genBuildPs();
+  document.querySelectorAll('.modname').forEach(e=>e.textContent=proj.modName);
+  renderValidation();
+  autosave();
+}
+
+/* ---- autosave to IndexedDB (survives reload/close; handles large textures) ---- */
+const DB_NAME='dayz_item_forge', STORE='project';
+let _db=null, _saveT=null;
+function openDB(){ return new Promise((res,rej)=>{ const r=indexedDB.open(DB_NAME,1);
+  r.onupgradeneeded=()=>r.result.createObjectStore(STORE); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+function autosave(){ if(_saveT)clearTimeout(_saveT); _saveT=setTimeout(async()=>{
+  try{ if(!_db)_db=await openDB(); _db.transaction(STORE,'readwrite').objectStore(STORE).put(JSON.parse(JSON.stringify(proj)),'current');
+    const el=$('saveDot'); if(el){ el.textContent='saved'; el.style.opacity='1'; setTimeout(()=>el.style.opacity='0.35',900); }
+  }catch(e){} },500); }
+async function restoreSaved(){ try{ if(!_db)_db=await openDB();
+  return await new Promise(res=>{ const rq=_db.transaction(STORE,'readonly').objectStore(STORE).get('current'); rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null); });
+}catch(e){ return null; } }
+function renderAll(){ renderList(); renderEditor(); renderOutputs(); }
+
+/* ----------------------------- config generation ----------------------------- */
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function texPath(it){ return `${proj.modName}\\data\\${meta(it).folder}\\${it.cls}.paa`; }
+function allRequiredAddons(){
+  const set=new Set(REQUIRED_ADDONS);
+  proj.items.forEach(it=>{ (it.reqAddons||[]).forEach(a=>{ if(a&&a.trim())set.add(a.trim()); }); });
+  return [...set];
+}
+
+/* ----------------------------- config.cpp import ----------------------------- */
+function stripComments(s){ return s.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/[^\n]*/g,''); }
+function matchBrace(s,i){ let d=0; for(;i<s.length;i++){ if(s[i]==='{')d++; else if(s[i]==='}'){ if(--d===0)return i; } } return -1; }
+function classBody(s,name){ const re=new RegExp('class\\s+'+name+'\\s*\\{'); const m=re.exec(s); if(!m)return null;
+  const open=m.index+m[0].length-1, close=matchBrace(s,open); return close<0?null:s.slice(open+1,close); }
+
+function parseConfig(srcRaw){
+  const src=stripComments(srcRaw); const items=[]; let modName=null;
+  const mp=src.match(/class\s+CfgPatches\s*\{\s*class\s+([A-Za-z0-9_]+)/); if(mp)modName=mp[1];
+  const body=classBody(src,'CfgVehicles'); if(!body) return {modName,items};
+  const re=/class\s+([A-Za-z0-9_]+)\s*:\s*([A-Za-z0-9_]+)\s*\{/g; let m;
+  while((m=re.exec(body))){
+    const open=re.lastIndex-1, close=matchBrace(body,open);
+    if(close<0) break;
+    items.push(parseItem(m[1],m[2],body.slice(open+1,close)));
+    re.lastIndex=close+1;
+  }
+  return {modName,items};
+}
+function parseItem(name,base,inner){
+  const vanilla=BASE_BY_CLS[base];
+  const texPaths=[...inner.matchAll(/"([^"]*\\data\\[^"]+\.paa)"/gi)];
+  let folder=null, slots=texPaths.length||3;
+  if(texPaths.length){ const mm=texPaths[0][1].match(/\\data\\([^\\]+)\\/i); if(mm)folder=mm[1]; }
+  const it = vanilla ? defaultItem(base) : defaultItem('__custom__');
+  it.id=uid(); it.cls=name; it.base=base; it.tpl=null; it.tex=null; it.rvmat=null;
+  if(!vanilla){ it.customBase=true; it.folder=folder||'items'; it.cSlots=slots; it.reqAddons=[]; }
+  const g=re=>{ const x=inner.match(re); return x?x[1]:null; };
+  it.display=g(/displayName\s*=\s*"([^"]*)"/)||it.cls;
+  it.desc=g(/descriptionShort\s*=\s*"([^"]*)"/)||'';
+  const cargo=inner.match(/itemsCargoSize\[\]\s*=\s*\{\s*(\d+)\s*,\s*(\d+)\s*\}/);
+  if(cargo){ it.cargoW=+cargo[1]; it.cargoH=+cargo[2]; } else { it.cargoW=null; it.cargoH=null; }
+  const heat=g(/heatIsolation\s*=\s*([\d.]+)/); it.heat = heat!=null?+heat:(vanilla?it.heat:null);
+  const mel=g(/\bmelee\s*=\s*([\d.]+)/); if(mel!=null){ it.melee=+mel; if(!vanilla)it.cArmor=true; }
+  const fire=g(/\bfirearm\s*=\s*([\d.]+)/); if(fire!=null){ it.firearm=+fire; if(!vanilla)it.cArmor=true; }
+  const w=g(/\bweight\s*=\s*(\d+)/); if(w!=null)it.weight=+w;
+  const vis=g(/visibilityModifier\s*=\s*([\d.]+)/); if(vis!=null)it.vis=+vis;
+  const isz=inner.match(/itemSize\[\]\s*=\s*\{\s*(\d+)\s*,\s*(\d+)\s*\}/i); if(isz){ it.sizeW=+isz[1]; it.sizeH=+isz[2]; }
+  const hp=g(/hitpoints\s*=\s*(\d+)/); if(hp!=null)it.hp=+hp;
+  if(/hiddenSelectionsMaterials/i.test(inner)) it.adv=true;
+  if(/healthLevels/i.test(inner)){ it.adv=true; it.fullHealth=true; }
+  const att=inner.match(/attachments\[\]\s*=\s*\{([\s\S]*?)\}/i);
+  if(att){ const list=[...att[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]); if(list.length){ it.adv=true; it.att=list; } }
+  return it;
+}
+
+/* ----------------------------- types.xml generation ----------------------------- */
+function ensureEcon(){ if(!proj.econ) proj.econ=newProject().econ; if(!proj.econ.flags) proj.econ.flags=newProject().econ.flags; return proj.econ; }
+function econCategory(it){
+  const e=proj.econ;
+  if(e.category!=='auto') return e.category;
+  return meta(it).cat==='Containers' ? 'containers' : 'clothes';
+}
+function genTypes(){
+  const e=ensureEcon(); const f=e.flags;
+  const usages=String(e.usages||'').split(',').map(x=>x.trim()).filter(Boolean);
+  const tiers=String(e.tiers||'').split(',').map(x=>x.trim()).filter(Boolean);
+  let s='<?xml version="1.0" encoding="UTF-8"?>\n<types>\n';
+  proj.items.forEach(it=>{
+    if(!it.cls||!it.cls.trim()) return;
+    if(e.skipCrates && meta(it).kind==='crate') return;
+    s+='    <type name="'+it.cls+'">\n';
+    s+='        <nominal>'+(e.nominal||0)+'</nominal>\n';
+    s+='        <lifetime>'+(e.lifetime||0)+'</lifetime>\n';
+    s+='        <restock>'+(e.restock||0)+'</restock>\n';
+    s+='        <min>'+(e.min||0)+'</min>\n';
+    s+='        <quantmin>-1</quantmin>\n        <quantmax>-1</quantmax>\n';
+    s+='        <cost>'+(e.cost||0)+'</cost>\n';
+    s+='        <flags count_in_cargo="'+f.count_in_cargo+'" count_in_hoarder="'+f.count_in_hoarder+'" count_in_map="'+f.count_in_map+'" count_in_player="'+f.count_in_player+'" crafted="'+f.crafted+'" deloot="'+f.deloot+'"/>\n';
+    const cat=econCategory(it); if(cat) s+='        <category name="'+cat+'"/>\n';
+    usages.forEach(u=>{ s+='        <usage name="'+u+'"/>\n'; });
+    tiers.forEach(t=>{ s+='        <value name="'+t+'"/>\n'; });
+    s+='    </type>\n';
+  });
+  s+='</types>\n';
+  return s;
+}
+
+function genConfig(){
+  const usedBases=[...new Set(proj.items.map(i=>i.base).filter(bc=>bc&&bc.trim()))];
+  let s='';
+  // CfgPatches
+  s+='class CfgPatches\n{\n\tclass '+proj.modName+'\n\t{\n';
+  s+='\t\tunits[]={};\n\t\tweapons[]={};\n\t\trequiredVersion=0.1;\n';
+  s+='\t\trequiredAddons[]=\n\t\t{\n'+allRequiredAddons().map(a=>'\t\t\t"'+a+'"').join(',\n')+'\n\t\t};\n';
+  s+='\t};\n};\n';
+  // CfgVehicles
+  s+='class CfgVehicles\n{\n';
+  s+='\tclass Clothing;\n';
+  usedBases.forEach(bc=>{ s+='\tclass '+bc+';\n'; });
+  s+='\n';
+  proj.items.forEach(it=>{ s+=genItem(it); });
+  s+='};\n';
+  return s;
+}
+
+function arr(name,vals){ return '\t\t'+name+'[]=\n\t\t{\n'+vals.map(x=>'\t\t\t"'+x+'"').join(',\n')+'\n\t\t};\n'; }
+function matPath(it){ return `${proj.modName}\\data\\${meta(it).folder}\\${it.cls}.rvmat`; }
+function genHealth(roots,hp){
+  const tiers=[[1,''],[0.7,''],[0.5,'_damage'],[0.3,'_damage'],[0,'_destruct']];
+  let s='\t\tclass DamageSystem\n\t\t{\n\t\t\tclass GlobalHealth\n\t\t\t{\n\t\t\t\tclass Health\n\t\t\t\t{\n';
+  if(hp!=null&&hp!=='') s+='\t\t\t\t\thitpoints='+hp+';\n';
+  s+='\t\t\t\t\thealthLevels[]=\n\t\t\t\t\t{\n';
+  s+=tiers.map(([lvl,suf])=>{ const inner=roots.map(r=>'"'+r+suf+'.rvmat"').join(', '); return '\t\t\t\t\t\t{'+lvl+', {'+inner+'}}'; }).join(',\n')+'\n';
+  s+='\t\t\t\t\t};\n\t\t\t\t};\n\t\t\t};\n\t\t};\n';
+  return s;
+}
+
+function genItem(it){
+  const b=meta(it); const slots=b.slots||3;
+  const prof=ADV_PROFILES[it.base]||{};
+  const adv=!!it.adv;
+  let s='\tclass '+it.cls+': '+it.base+'\n\t{\n';
+  s+='\t\tscope=2;\n';
+  s+='\t\tdisplayName="'+(it.display||it.cls).replace(/"/g,'')+'";\n';
+  s+='\t\tdescriptionShort="'+(it.desc||'').replace(/"/g,'')+'";\n';
+
+  // placeable crate (WoodenCrate pattern): model + hologram + Cargo class + single texture
+  if(b.kind==='crate'){
+    s+='\t\tmodel="\\DZ\\gear\\camping\\wooden_case.p3d";\n';
+    s+='\t\thologramMaterial="wooden_case";\n\t\thologramMaterialPath="dz\\gear\\camping\\data";\n';
+    s+='\t\tweight='+((it.weight!=null&&it.weight!=='')?it.weight:100000)+';\n';
+    const isz = (it.sizeW!=null&&it.sizeW!==''&&it.sizeH!=null&&it.sizeH!=='')?[it.sizeW,it.sizeH]:[10,10];
+    s+='\t\titemSize[]={'+isz[0]+','+isz[1]+'};\n';
+    s+='\t\titemBehaviour=0;\n\t\tcarveNavmesh=1;\n\t\tcanBeDigged=0;\n\t\trotationFlags=2;\n';
+    s+=arr('hiddenSelectionsTextures',[texPath(it)]);
+    s+='\t\tclass Cargo\n\t\t{\n\t\t\titemsCargoSize[]={'+(it.cargoW??10)+','+(it.cargoH??25)+'};\n\t\t\topenable=0;\n\t\t\tallowOwnedCargoManipulation=1;\n\t\t};\n';
+    s+=arr('attachments',(adv&&it.att)?it.att:['Shoulder']);
+    s+='\t};\n';
+    return s;
+  }
+
+  // backpack wiring (advanced, from profile)
+  if(adv&&prof.inv){ s+=arr('inventorySlot',prof.inv); if(prof.info)s+=arr('itemInfo',prof.info); if(prof.rot!=null)s+='\t\trotationFlags='+prof.rot+';\n'; }
+  // attachments (advanced)
+  const att = adv ? (it.att||prof.att) : null;
+  if(att&&att.length) s+=arr('attachments',att);
+
+  if(it.cargoW!=null) s+='\t\titemsCargoSize[]={'+it.cargoW+','+it.cargoH+'};\n';
+  if(it.sizeW!=null&&it.sizeW!==''&&it.sizeH!=null&&it.sizeH!=='') s+='\t\titemSize[]={'+it.sizeW+','+it.sizeH+'};\n';
+  if(it.heat!=null)   s+='\t\theatIsolation='+fmt(it.heat)+';\n';
+  if(b.armor){ if(it.melee!=null)s+='\t\tmelee='+fmt(it.melee)+';\n'; if(it.firearm!=null)s+='\t\tfirearm='+fmt(it.firearm)+';\n'; }
+  if(it.weight!=null&&it.weight!=='') s+='\t\tweight='+it.weight+';\n';
+  if(it.vis!=null&&it.vis!=='') s+='\t\tvisibilityModifier='+fmt(it.vis)+';\n';
+
+  // protector case wiring (inventory slot)
+  if(b.protector) s+=arr('inventorySlot',['ProtectorCase']);
+
+  // hidden selections (named slots the material/texture binds to)
+  let sel=null;
+  if(b.armband) sel=ARMBAND_SELECTIONS;
+  else if(b.camoMask) sel=CAMO_MASK_SELECTIONS;
+  else if(b.zbytek) sel=['zbytek'];
+  else if(adv&&prof.sel) sel=prof.sel;
+  if(sel) s+=arr('hiddenSelections',sel);
+
+  if(b.armband){
+    s+='\t\trotationFlags=34;\n';
+    s+='\t\tclass ClothingTypes\n\t\t{\n\t\t\tmale="\\DZ\\characters\\tops\\armbend_dynamic_m.p3d";\n\t\t\tfemale="\\DZ\\characters\\tops\\armbend_dynamic_f.p3d";\n\t\t};\n';
+  }
+
+  // textures
+  const p=texPath(it);
+  s+=arr('hiddenSelectionsTextures',Array.from({length:slots},()=>p));
+  // materials (advanced glow/custom rvmat)
+  if(adv&&it.rvmat){ const mp=matPath(it); s+=arr('hiddenSelectionsMaterials',Array.from({length:slots},()=>mp)); }
+
+  // durability
+  if(adv&&it.fullHealth&&prof.roots) s+=genHealth(prof.roots,it.hp);
+  else if(it.hp!=null&&it.hp!=='') s+='\t\tclass DamageSystem\n\t\t{\n\t\t\tclass GlobalHealth\n\t\t\t{\n\t\t\t\tclass Health\n\t\t\t\t{\n\t\t\t\t\thitpoints='+it.hp+';\n\t\t\t\t};\n\t\t\t};\n\t\t};\n';
+
+  s+='\t};\n';
+  return s;
+}
+function fmt(n){ n=Number(n); return Number.isInteger(n)?n+'.0':String(n); }
+
+/* ----------------------------- build.ps1 generation ----------------------------- */
+function genBuildPs(){
+  const mod=proj.modName, sign=proj.sign, override=proj.toolsPath.trim();
+  return `# build.ps1 — generated by Kitbash
+# Converts every PNG under .\\${mod}\\data to .paa, then packs ${mod}.pbo into .\\@${mod}\\addons
+$ErrorActionPreference = "Stop"
+$root      = $PSScriptRoot
+$src       = Join-Path $root "${mod}"
+$outAddons = Join-Path $root "@${mod}\\addons"
+
+# --- locate DayZ Tools ---
+${override
+  ? `$bin = "${override.replace(/\\/g,'\\\\')}"`
+  : `$bin = $null
+$candidates = @(
+  "$\{env:ProgramFiles(x86)\}\\Steam\\steamapps\\common\\DayZ Tools\\Bin",
+  "$\{env:ProgramFiles\}\\Steam\\steamapps\\common\\DayZ Tools\\Bin",
+  "C:\\Program Files (x86)\\Steam\\steamapps\\common\\DayZ Tools\\Bin"
+)
+foreach ($c in $candidates) { if (Test-Path $c) { $bin = $c; break } }
+if (-not $bin) {
+  $steam = (Get-ItemProperty "HKCU:\\Software\\Valve\\Steam" -ErrorAction SilentlyContinue).SteamPath
+  if ($steam) { $p = Join-Path $steam "steamapps\\common\\DayZ Tools\\Bin"; if (Test-Path $p) { $bin = $p } }
+}`}
+if (-not $bin -or -not (Test-Path $bin)) { throw "DayZ Tools Bin folder not found. Set the path in the Forge Project tab." }
+
+$img2paa = Join-Path $bin "ImageToPAA\\ImageToPAA.exe"
+$builder = Join-Path $bin "AddonBuilder\\AddonBuilder.exe"
+if (-not (Test-Path $img2paa)) { throw "ImageToPAA.exe not found under $bin" }
+if (-not (Test-Path $builder)) { throw "AddonBuilder.exe not found under $bin" }
+
+# --- 1. PNG -> PAA ---
+$pngs = Get-ChildItem -Path $src -Recurse -Filter *.png -ErrorAction SilentlyContinue
+Write-Host "Converting $($pngs.Count) texture(s) to PAA..." -ForegroundColor Cyan
+foreach ($png in $pngs) {
+  $paa = [System.IO.Path]::ChangeExtension($png.FullName, ".paa")
+  & $img2paa $png.FullName $paa | Out-Null
+  Write-Host "  $($png.Name) -> $([System.IO.Path]::GetFileName($paa))"
+}
+
+# --- 2. pack PBO ---
+New-Item -ItemType Directory -Force -Path $outAddons | Out-Null
+$args = @($src, $outAddons, "-clear", "-packonly")
+${sign ? `# signing
+$keysDir = Join-Path $root "keys"
+$privDir = Join-Path $root "private"
+New-Item -ItemType Directory -Force -Path $keysDir,$privDir | Out-Null
+$dssign = Join-Path $bin "DSUtils\\DSSignFile.exe"
+$dskey  = Join-Path $bin "DSUtils\\DSCreateKey.exe"
+$keyName = "${mod}"
+if (-not (Test-Path (Join-Path $privDir "$keyName.biprivatekey"))) {
+  Push-Location $privDir; & $dskey $keyName | Out-Null; Pop-Location
+}
+$args += @("-sign", (Join-Path $privDir "$keyName.biprivatekey"))
+` : ''}Write-Host "Packing ${mod}.pbo ..." -ForegroundColor Cyan
+& $builder @args
+${sign ? `Copy-Item (Join-Path $privDir "$keyName.bikey") $keysDir -Force -ErrorAction SilentlyContinue
+` : ''}Write-Host "Done. Mod ready at $outAddons" -ForegroundColor Green
+`;
+}
+
+/* ----------------------------- texture handling ----------------------------- */
+function loadImageFile(file){
+  const it=current(); if(!it)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const res=Number(it.res)||2048;
+      const c=document.createElement('canvas'); c.width=res; c.height=res;
+      const cx=c.getContext('2d'); cx.drawImage(img,0,0,res,res);
+      it.tex=c.toDataURL('image/png');
+      renderAll();
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ----------------------------- export ----------------------------- */
+function dataURLtoUint8(durl){
+  const b=atob(durl.split(',')[1]); const u=new Uint8Array(b.length);
+  for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i); return u;
+}
+function b64ToUint8(b64){ const b=atob(b64); const u=new Uint8Array(b.length); for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i); return u; }
+
+async function exportMod(){
+  const st=$('expStatus'); st.className='status'; st.textContent='';
+  if(!proj.items.length){ showExp('Add at least one item first.',false); return; }
+  const files = buildFileMap();   // {path:Uint8Array|string}
+  // Try File System Access API
+  if(window.showDirectoryPicker){
+    try{
+      const dir=await window.showDirectoryPicker({mode:'readwrite'});
+      for(const [path,content] of Object.entries(files)){
+        await writeInto(dir,path,content);
+      }
+      showExp(`Wrote ${Object.keys(files).length} files into "${dir.name}". Open PowerShell there and run ./build.ps1`,true);
+      return;
+    }catch(err){
+      if(err && err.name==='AbortError'){ showExp('Export cancelled.',false); return; }
+      // fall through to zip
+    }
+  }
+  // Fallback: zip download
+  const zip=makeZip(files);
+  downloadBlob(new Blob([zip],{type:'application/zip'}), proj.modName+'_mod.zip');
+  showExp('Folder write unavailable — downloaded a .zip instead. Unzip, then run build.ps1.',true);
+}
+
+function buildFileMap(){
+  const files={};
+  files[`${proj.modName}/config.cpp`]=genConfig();
+  files[`build.ps1`]=genBuildPs();
+  files[`${proj.modName}/data/_textures_go_here.txt`]='PAA files are generated here by build.ps1 from the PNGs.';
+  if(ensureEcon().include) files[`types.xml`]=genTypes();
+  proj.items.forEach(it=>{
+    const b=meta(it);
+    if(it.tex) files[`${proj.modName}/data/${b.folder}/${it.cls}.png`]=dataURLtoUint8(it.tex);
+    if(it.adv && it.rvmat) files[`${proj.modName}/data/${b.folder}/${it.cls}.rvmat`]=b64ToUint8(it.rvmat.b64);
+  });
+  return files;
+}
+
+async function writeInto(dir,path,content){
+  const parts=path.split('/'); const fname=parts.pop();
+  let d=dir;
+  for(const p of parts){ d=await d.getDirectoryHandle(p,{create:true}); }
+  const fh=await d.getFileHandle(fname,{create:true});
+  const w=await fh.createWritable();
+  await w.write(typeof content==='string'?new Blob([content]):content);
+  await w.close();
+}
+
+function showExp(msg,ok){ const st=$('expStatus'); st.className='status '+(ok?'ok':'err'); st.textContent=msg; }
+function downloadBlob(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); }
+
+/* minimal store-only ZIP writer (no deps) */
+function makeZip(files){
+  const enc=new TextEncoder(); const chunks=[]; const central=[]; let offset=0;
+  const crcTable=(()=>{ const t=[]; for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1; t[n]=c>>>0; } return t; })();
+  function crc32(u){ let c=0xFFFFFFFF; for(let i=0;i<u.length;i++)c=crcTable[(c^u[i])&0xFF]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+  function u16(n){ return [n&255,(n>>8)&255]; } function u32(n){ return [n&255,(n>>8)&255,(n>>16)&255,(n>>24)&255]; }
+  for(const [name,content] of Object.entries(files)){
+    const data = typeof content==='string'?enc.encode(content):content;
+    const nameB=enc.encode(name); const crc=crc32(data);
+    const local=[0x50,0x4b,3,4,...u16(20),...u16(0),...u16(0),...u16(0),...u16(0),...u32(crc),...u32(data.length),...u32(data.length),...u16(nameB.length),...u16(0)];
+    chunks.push(new Uint8Array(local),nameB,data);
+    central.push([0x50,0x4b,1,2,...u16(20),...u16(20),...u16(0),...u16(0),...u16(0),...u16(0),...u32(crc),...u32(data.length),...u32(data.length),...u16(nameB.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(offset)],nameB);
+    offset+=local.length+nameB.length+data.length;
+  }
+  const centralStart=offset; const centralChunks=[]; let centralSize=0;
+  for(const c of central){ if(Array.isArray(c)){ const a=new Uint8Array(c); centralChunks.push(a); centralSize+=a.length; } else { centralChunks.push(c); centralSize+=c.length; } }
+  const end=new Uint8Array([0x50,0x4b,5,6,...u16(0),...u16(0),...u16(central.length/2),...u16(central.length/2),...u32(centralSize),...u32(centralStart),...u16(0)]);
+  const all=[...chunks,...centralChunks,end];
+  let total=all.reduce((s,a)=>s+a.length,0); const out=new Uint8Array(total); let o=0;
+  for(const a of all){ out.set(a,o); o+=a.length; } return out;
+}
+
+/* ----------------------------- events ----------------------------- */
+$('btnAdd').onclick=()=>{ const it=defaultItem($('fBase').value||'BDUJacket'); proj.items.push(it); activeId=it.id; renderAll(); };
+$('btnDelete').onclick=$('btnDelete').onclick=()=>{ if(!current())return; proj.items=proj.items.filter(i=>i.id!==activeId); activeId=proj.items.length?proj.items[0].id:null; renderAll(); };
+$('btnDup').onclick=()=>{ const it=current(); if(!it)return; const c=JSON.parse(JSON.stringify(it)); c.id=uid(); c.cls=nextClassName(BASE_BY_CLS[it.base]); c.display=it.display+' Copy'; proj.items.push(c); activeId=c.id; renderAll(); };
+
+function bindField(id,key,parse){
+  $(id).addEventListener('input',()=>{ const it=current(); if(!it)return; let v=$(id).value; if(parse)v=parse(v); it[key]=v; if(id==='fHeat')$('heatVal').textContent=Number(v).toFixed(2); renderList(); renderOutputs(); });
+}
+$('fBase').addEventListener('change',()=>{ const it=current(); if(!it)return;
+  const val=$('fBase').value;
+  if(val==='__custom__'){ it.customBase=true; it.base=''; it.folder=it.folder||'items'; it.cSlots=it.cSlots||3; it.tpl=null; renderAll(); return; }
+  it.customBase=false; it.reqAddons=[];
+  const b=BASE_BY_CLS[val]; it.base=b.cls;
+  if(it.cargoW==null && b.cargo){ it.cargoW=b.cargo[0]; it.cargoH=b.cargo[1]; }
+  if(!b.cargo){ it.cargoW=null; it.cargoH=null; }
+  if(b.armor){ if(it.melee==null)it.melee=0.9; if(it.firearm==null)it.firearm=0.9; }
+  it.tpl=null;   // re-auto-match a template for the new base
+  renderAll();
+});
+// custom/modded base bindings
+$('fCustomBase').addEventListener('input',()=>{ const it=current(); if(!it)return; it.base=$('fCustomBase').value.trim(); renderList(); renderOutputs(); });
+$('fCustomFolder').addEventListener('change',()=>{ const it=current(); if(!it)return; it.folder=$('fCustomFolder').value; it.tpl=null; renderTplPicker(it); renderOutputs(); drawTex(it); });
+$('fCustomSlots').addEventListener('input',()=>{ const it=current(); if(!it)return; it.cSlots=parseInt($('fCustomSlots').value)||3; renderOutputs(); });
+$('fReqAddons').addEventListener('input',()=>{ const it=current(); if(!it)return; it.reqAddons=$('fReqAddons').value.split(',').map(x=>x.trim()).filter(Boolean); renderOutputs(); });
+$('fCustomCargo').addEventListener('change',()=>{ const it=current(); if(!it)return; if($('fCustomCargo').checked){ it.cargoW=it.cargoW??4; it.cargoH=it.cargoH??4; } else { it.cargoW=null; it.cargoH=null; } renderEditor(); renderOutputs(); });
+$('fCustomArmor').addEventListener('change',()=>{ const it=current(); if(!it)return; it.cArmor=$('fCustomArmor').checked; if(it.cArmor){ it.melee=it.melee??0.9; it.firearm=it.firearm??0.9; } renderEditor(); renderOutputs(); });
+bindField('fClass','cls',v=>v.trim().replace(/\s+/g,'_'));
+bindField('fDisplay','display');
+bindField('fDesc','desc');
+bindField('fCargoW','cargoW',v=>v===''?null:parseInt(v));
+bindField('fCargoH','cargoH',v=>v===''?null:parseInt(v));
+bindField('fHeat','heat',v=>parseFloat(v));
+bindField('fMelee','melee',v=>v===''?null:parseFloat(v));
+bindField('fFirearm','firearm',v=>v===''?null:parseFloat(v));
+bindField('fWeight','weight',v=>v===''?null:parseInt(v));
+bindField('fSizeW','sizeW',v=>v===''?null:parseInt(v));
+bindField('fSizeH','sizeH',v=>v===''?null:parseInt(v));
+bindField('fVis','vis',v=>v===''?null:parseFloat(v));
+// durability
+$('fHp').addEventListener('input',()=>{ const it=current(); if(!it)return; const v=$('fHp').value; it.hp=v===''?null:parseInt(v);
+  $('fHpPreset').value=(it.hp==null)?'':(['200','500','1000','5000','1000000'].includes(String(it.hp))?String(it.hp):'custom'); renderOutputs(); });
+$('fHpPreset').addEventListener('change',()=>{ const it=current(); if(!it)return; const v=$('fHpPreset').value;
+  if(v==='custom'){ $('fHp').focus(); return; } it.hp = v===''?null:parseInt(v); $('fHp').value=it.hp??''; renderOutputs(); });
+// templates
+$('fTpl').addEventListener('change',()=>{ const it=current(); if(!it)return; it.tpl=$('fTpl').value; drawTex(it); });
+$('fTplShow').addEventListener('change',()=>{ const it=current(); if(!it)return; it.tplShow=$('fTplShow').checked; drawTex(it); });
+$('btnTplDl').onclick=()=>{ const it=current(); const bucket=bucketFor(it); if(!it||!it.tpl||!bucket)return;
+  const a=document.createElement('a'); a.href='templates/'+bucket+'/'+it.tpl; a.download=it.tpl; a.target='_blank'; a.click(); };
+$('btnTplCmd').onclick=()=>navigator.clipboard.writeText(TPL_CMD);
+// advanced mode
+$('fAdvItem').addEventListener('change',()=>{ const it=current(); if(!it)return; it.adv=$('fAdvItem').checked; renderEditor(); renderOutputs(); renderList(); });
+$('fFullHealth').addEventListener('change',()=>{ const it=current(); if(!it)return; it.fullHealth=$('fFullHealth').checked; renderOutputs(); });
+$('fAtt').addEventListener('input',()=>{ const it=current(); if(!it)return; it.att=$('fAtt').value.split('\n').map(x=>x.trim()).filter(Boolean); renderOutputs(); });
+const rvmatDrop=$('rvmatDrop'), rvmatInput=$('rvmatInput');
+function loadRvmat(file){ const it=current(); if(!it||!file)return; const r=new FileReader();
+  r.onload=()=>{ const u=new Uint8Array(r.result); let bin=''; for(let i=0;i<u.length;i++)bin+=String.fromCharCode(u[i]); it.rvmat={name:file.name,b64:btoa(bin)}; renderEditor(); renderOutputs(); };
+  r.readAsArrayBuffer(file); }
+rvmatDrop.onclick=()=>rvmatInput.click();
+rvmatInput.onchange=e=>{ if(e.target.files[0])loadRvmat(e.target.files[0]); rvmatInput.value=''; };
+rvmatDrop.addEventListener('dragover',e=>{e.preventDefault();rvmatDrop.classList.add('drag');});
+rvmatDrop.addEventListener('dragleave',()=>rvmatDrop.classList.remove('drag'));
+rvmatDrop.addEventListener('drop',e=>{e.preventDefault();rvmatDrop.classList.remove('drag'); if(e.dataTransfer.files[0])loadRvmat(e.dataTransfer.files[0]);});
+$('btnClearRvmat').onclick=()=>{ const it=current(); if(it){it.rvmat=null;renderEditor();renderOutputs();} };
+$('fRes').addEventListener('change',()=>{ const it=current(); if(it)it.res=Number($('fRes').value); });
+$('fAdvOn').addEventListener('change',e=>{ $('advFields').style.display=e.target.checked?'block':'none'; });
+
+/* texture drop/click/paste */
+const drop=$('drop'), fileInput=$('fileInput');
+drop.onclick=()=>fileInput.click();
+fileInput.onchange=e=>{ if(e.target.files[0])loadImageFile(e.target.files[0]); fileInput.value=''; };
+drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('drag');});
+drop.addEventListener('dragleave',()=>drop.classList.remove('drag'));
+drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('drag'); const f=e.dataTransfer.files[0]; if(f&&f.type.startsWith('image/'))loadImageFile(f);});
+document.addEventListener('paste',e=>{ if(!current())return; for(const it of e.clipboardData.items){ if(it.type.startsWith('image/')){ loadImageFile(it.getAsFile()); e.preventDefault(); break; } } });
+$('btnClearTex').onclick=()=>{ const it=current(); if(it){it.tex=null;renderAll();} };
+
+/* tabs */
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active')); b.classList.add('active');
+  ['config','types','build','settings'].forEach(t=>$('tab-'+t).style.display=(t===b.dataset.tab?'block':'none'));
+});
+
+/* project settings */
+function bindProj(id,key){ $(id).addEventListener('input',()=>{ proj[key]=$(id).value; renderOutputs(); }); }
+bindProj('pModName','modName'); bindProj('pPrefix','prefix'); bindProj('pAuthor','author');
+bindProj('pBrand','brand'); bindProj('pToolsPath','toolsPath');
+$('pSign').addEventListener('change',e=>{ proj.sign=e.target.checked; renderOutputs(); });
+
+/* top actions */
+$('btnExport').onclick=()=>{ document.querySelector('.tabs button[data-tab="settings"]').click(); exportMod(); };
+$('btnCopyCfg').onclick=()=>{ navigator.clipboard.writeText(genConfig()); $('cfgStat').textContent='copied ✓'; setTimeout(()=>$('cfgStat').textContent='',1500); };
+$('btnCopyPs').onclick=()=>navigator.clipboard.writeText(genBuildPs());
+$('btnCopyTypes').onclick=()=>{ navigator.clipboard.writeText(genTypes()); $('typesStat').textContent='copied ✓'; setTimeout(()=>$('typesStat').textContent='',1500); };
+// loot economy bindings
+function bindEcon(id,key,num){ $(id).addEventListener('input',()=>{ ensureEcon()[key]= num?(+$(id).value||0):$(id).value; renderOutputs(); }); }
+bindEcon('eNominal','nominal',1); bindEcon('eMin','min',1); bindEcon('eLifetime','lifetime',1);
+bindEcon('eRestock','restock',1); bindEcon('eCost','cost',1); bindEcon('eUsages','usages',0); bindEcon('eTiers','tiers',0);
+$('eCategory').addEventListener('change',()=>{ ensureEcon().category=$('eCategory').value; renderOutputs(); });
+$('eInclude').addEventListener('change',()=>{ ensureEcon().include=$('eInclude').checked; renderOutputs(); });
+$('eSkipCrates').addEventListener('change',()=>{ ensureEcon().skipCrates=$('eSkipCrates').checked; renderOutputs(); });
+$('btnNew').onclick=()=>{ if(confirm('Start a new project? Unsaved work is lost.')){ proj=newProject(); activeId=null; syncProjInputs(); renderAll(); } };
+$('btnSaveProj').onclick=()=>{ downloadBlob(new Blob([JSON.stringify(proj,null,2)],{type:'application/json'}), proj.modName+'.forge.json'); };
+$('btnLoadProj').onclick=()=>$('projInput').click();
+$('projInput').onchange=e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{ try{ proj=JSON.parse(r.result); activeId=proj.items[0]?.id||null; syncProjInputs(); renderAll(); }catch(x){ alert('Bad project file'); } }; r.readAsText(f); e.target.value=''; };
+$('btnImportCpp').onclick=()=>$('cppInput').click();
+$('cppInput').onchange=e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader();
+  r.onload=()=>{ let res; try{ res=parseConfig(r.result); }catch(x){ alert('Could not parse that config.cpp:\n'+x.message); return; }
+    if(!res.items.length){ alert('No item classes found in CfgVehicles.'); return; }
+    if(res.modName && !proj.items.length) proj.modName=res.modName;
+    res.items.forEach(it=>proj.items.push(it));
+    activeId=res.items[0].id; syncProjInputs(); renderAll();
+    const mats=res.items.filter(i=>i.adv).length;
+    alert(`Imported ${res.items.length} item(s)${res.modName?' from mod "'+res.modName+'"':''}.\n\nNote: config.cpp doesn't contain the image or .rvmat files — re-attach textures${mats?' and re-upload materials for the '+mats+' advanced item(s)':''} before exporting.`);
+  };
+  r.readAsText(f); e.target.value=''; };
+
+function syncProjInputs(){ $('pModName').value=proj.modName; $('pPrefix').value=proj.prefix; $('pAuthor').value=proj.author; $('pBrand').value=proj.brand; $('pToolsPath').value=proj.toolsPath||''; $('pSign').checked=!!proj.sign;
+  const e=ensureEcon(); $('eNominal').value=e.nominal; $('eMin').value=e.min; $('eLifetime').value=e.lifetime; $('eRestock').value=e.restock; $('eCost').value=e.cost; $('eCategory').value=e.category; $('eUsages').value=e.usages; $('eTiers').value=e.tiers; $('eInclude').checked=!!e.include; $('eSkipCrates').checked=!!e.skipCrates; }
+
+/* ----------------------------- boot ----------------------------- */
+fetch('templates/index.json',{cache:'no-store'})
+  .then(r=>r.ok?r.json():null)
+  .then(j=>{ if(j){ TEMPLATES=j; if(current())renderTplPicker(current()); } })
+  .catch(()=>{});
+(async()=>{
+  const saved=await restoreSaved();
+  if(saved&&Array.isArray(saved.items)&&saved.items.length){ proj=Object.assign(newProject(),saved); activeId=proj.items[0].id; }
+  syncProjInputs();
+  renderAll();
+})();
+</script>
+</body>
+</html>
