@@ -77,10 +77,11 @@
   .pm-title b{color:var(--accent2)}
   .pm-tool{width:34px;height:32px;padding:0;font-size:15px;display:grid;place-items:center}
   .pm-tool.active{background:var(--accent);color:#1a120a;border-color:var(--accent)}
+  .pm-side button.active{background:var(--accent);color:#1a120a;border-color:var(--accent);font-weight:700}
   .pm-body{flex:1;display:flex;min-height:0}
   .pm-side{width:190px;border-right:1px solid var(--line);background:var(--panel);padding:12px;overflow:auto}
-  .pm-stage{flex:1;position:relative;overflow:hidden;background:#141110;display:grid;place-items:center}
-  #pmCanvas{cursor:crosshair;touch-action:none;image-rendering:pixelated}
+  .pm-stage{flex:1;position:relative;overflow:hidden;background:#141110}
+  #pmCanvas{position:absolute;inset:0;cursor:crosshair;touch-action:none}
   .pm-swatch{width:22px;height:22px;border-radius:4px;border:1px solid #0006;cursor:pointer}
   .pm-swatch.active{outline:2px solid var(--accent2);outline-offset:1px}
   .pm-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
@@ -398,6 +399,7 @@
     <button class="ghost" id="pmUndo" title="Undo (Ctrl+Z)">↶</button>
     <button class="ghost" id="pmRedo" title="Redo (Ctrl+Y)">↷</button>
     <button class="ghost" id="pmReset" title="Replace canvas with the vanilla template">⟳ Template</button>
+    <button class="ghost" id="pmFillAll" title="Fill the whole canvas with the current color">▦ Fill all</button>
     <button class="ghost danger" id="pmClear">Clear</button>
     <span class="sp"></span>
     <button class="ghost" id="pmZoomOut">−</button>
@@ -422,6 +424,11 @@
       <input type="range" id="pmOpacity" min="5" max="100" value="100" style="width:100%">
       <div class="pm-lbl">Fill tolerance — <span id="pmTolLbl">32</span></div>
       <input type="range" id="pmTol" min="0" max="128" value="32" style="width:100%">
+      <div class="pm-lbl">Symmetry</div>
+      <div class="pm-row">
+        <button class="ghost" id="pmMirrorX" title="Mirror left/right" style="flex:1">⇋ Horizontal</button>
+        <button class="ghost" id="pmMirrorY" title="Mirror top/bottom" style="flex:1">⇅ Vertical</button>
+      </div>
       <div class="divider"></div>
       <div class="hint">Scroll to zoom · middle-drag or Space-drag to pan · Alt-click to pick a color. Output: <span id="pmRes"></span>.</div>
     </div>
@@ -1415,7 +1422,14 @@ const Paint = (()=>{
   let zoom=1, panX=0, panY=0;
   let tool='brush', color='#e8772e', size=24, opacity=1, tol=32;
   let drawing=false, panning=false, spaceDown=false, last=null, start=null, preview=null;
+  let mirrorX=false, mirrorY=false, needsFit=false;
   const undo=[], redo=[];
+  // run a pc-drawing op once normally + once per enabled mirror axis (via canvas transform)
+  function eachMirror(fn){ fn();
+    if(mirrorX){ pctx.save(); pctx.translate(W,0); pctx.scale(-1,1); fn(); pctx.restore(); }
+    if(mirrorY){ pctx.save(); pctx.translate(0,W); pctx.scale(1,-1); fn(); pctx.restore(); }
+    if(mirrorX&&mirrorY){ pctx.save(); pctx.translate(W,W); pctx.scale(-1,-1); fn(); pctx.restore(); }
+  }
   let dc=null, dctx=null, checker=null;
 
   function maxUndo(){ return W<=1024?20 : W<=2048?12 : 6; }
@@ -1431,21 +1445,24 @@ const Paint = (()=>{
     $('pmItemName').textContent=it.display||it.cls;
     $('pmRes').textContent=W+' × '+W;
     $('paintModal').classList.add('open');
+    $('pmMirrorX').classList.toggle('active',mirrorX); $('pmMirrorY').classList.toggle('active',mirrorY);
     dc=$('pmCanvas'); dctx=dc.getContext('2d');
     if(!checker){ const c=document.createElement('canvas');c.width=c.height=16;const x=c.getContext('2d');
       x.fillStyle='#3a352f';x.fillRect(0,0,16,16);x.fillStyle='#2a2722';x.fillRect(0,0,8,8);x.fillRect(8,8,8,8);
       checker=dctx.createPattern(c,'repeat'); }
-    sizeStage();
-    // starting image: current texture, else the selected template, else blank
-    const startSrc = it.tex || tplSrc(it);
-    if(startSrc){ const img=new Image(); img.onload=()=>{ pctx.clearRect(0,0,W,W); pctx.drawImage(img,0,0,W,W); fit(); }; img.onerror=()=>{ fit(); }; img.src=startSrc; }
-    else { pctx.clearRect(0,0,W,W); fit(); }
+    // load the starting image into the paint layer
+    const startSrc = it.tex || tplSrc(it);   // current texture, else template, else blank
+    if(startSrc){ const img=new Image(); img.onload=()=>{ pctx.clearRect(0,0,W,W); pctx.drawImage(img,0,0,W,W); render(); }; img.onerror=()=>render(); img.src=startSrc; }
+    else pctx.clearRect(0,0,W,W);
+    // size + auto-fit once the stage has its real dimensions (ResizeObserver handles late layout)
+    needsFit=true; sizeStage(); fit();
     updUndoBtns();
   }
   function tplSrc(it){ const b=bucketFor(it); return (it.tpl && b) ? 'templates/'+b+'/'+it.tpl : null; }
   function close(){ $('paintModal').classList.remove('open'); item=null; pc=null; pctx=null; }
 
-  function sizeStage(){ const s=$('pmStage'); dc.width=s.clientWidth; dc.height=s.clientHeight; }
+  // use clientWidth/Height (true layout size, unaffected by any visual page scaling)
+  function sizeStage(){ const s=$('pmStage'); dc.width=Math.max(1,s.clientWidth); dc.height=Math.max(1,s.clientHeight); }
   function fit(){ const m=Math.min(dc.width/W, dc.height/W)*0.94; zoom=m; panX=(dc.width-W*zoom)/2; panY=(dc.height-W*zoom)/2; render(); }
   function setZoom(z,cx,cy){ cx=cx??dc.width/2; cy=cy??dc.height/2; const px=(cx-panX)/zoom, py=(cy-panY)/zoom;
     zoom=Math.max(0.05,Math.min(16,z)); panX=cx-px*zoom; panY=cy-py*zoom; render(); }
@@ -1475,7 +1492,9 @@ const Paint = (()=>{
     dctx.restore();
   }
   function toScreen(x,y){ return {x:panX+x*zoom, y:panY+y*zoom}; }
-  function toPc(e){ const r=dc.getBoundingClientRect(); const sx=e.clientX-r.left, sy=e.clientY-r.top;
+  function toPc(e){ const r=dc.getBoundingClientRect();
+    const fx=dc.width/r.width, fy=dc.height/r.height;          // CSS px -> canvas buffer px
+    const sx=(e.clientX-r.left)*fx, sy=(e.clientY-r.top)*fy;
     return {x:(sx-panX)/zoom, y:(sy-panY)/zoom, sx, sy}; }
 
   function strokeStyle(erase){ pctx.lineCap='round'; pctx.lineJoin='round'; pctx.lineWidth=size;
@@ -1488,15 +1507,16 @@ const Paint = (()=>{
     if(e.button===1 || spaceDown){ panning=true; last={x:e.clientX,y:e.clientY}; return; }
     const p=toPc(e);
     if(e.altKey || tool==='pick'){ pick(p); return; }
-    if(tool==='fill'){ snap(); floodFill(Math.floor(p.x),Math.floor(p.y)); render(); return; }
-    if(tool==='brush'||tool==='eraser'){ snap(); strokeStyle(tool==='eraser'); pctx.beginPath();
-      pctx.arc(p.x,p.y,size/2,0,7); pctx.fill(); last=p; drawing=true; render(); return; }
+    if(tool==='fill'){ snap(); const fx=Math.floor(p.x),fy=Math.floor(p.y); floodFill(fx,fy);
+      if(mirrorX)floodFill(W-1-fx,fy); if(mirrorY)floodFill(fx,W-1-fy); if(mirrorX&&mirrorY)floodFill(W-1-fx,W-1-fy); render(); return; }
+    if(tool==='brush'||tool==='eraser'){ snap(); strokeStyle(tool==='eraser');
+      eachMirror(()=>{ pctx.beginPath(); pctx.arc(p.x,p.y,size/2,0,7); pctx.fill(); }); last=p; drawing=true; render(); return; }
     if(tool==='line'||tool==='rect'||tool==='ellipse'){ start=p; preview={tool,x0:p.x,y0:p.y,x1:p.x,y1:p.y}; drawing=true; render(); }
   }
   function move(e){
     if(panning){ panX+=e.clientX-last.x; panY+=e.clientY-last.y; last={x:e.clientX,y:e.clientY}; render(); return; }
     if(!drawing)return; const p=toPc(e);
-    if(tool==='brush'||tool==='eraser'){ pctx.beginPath(); pctx.moveTo(last.x,last.y); pctx.lineTo(p.x,p.y); pctx.stroke(); last=p; render(); }
+    if(tool==='brush'||tool==='eraser'){ const a=last,b=p; eachMirror(()=>{ pctx.beginPath(); pctx.moveTo(a.x,a.y); pctx.lineTo(b.x,b.y); pctx.stroke(); }); last=p; render(); }
     else if(preview){ preview.x1=p.x; preview.y1=p.y; render(); }
   }
   function up(e){
@@ -1507,10 +1527,12 @@ const Paint = (()=>{
   }
   function commitShape(s){
     pctx.globalAlpha=opacity; pctx.strokeStyle=color; pctx.fillStyle=color;
-    pctx.lineWidth=size; pctx.lineCap='round'; pctx.lineJoin='round'; pctx.beginPath();
-    if(s.tool==='line'){ pctx.moveTo(s.x0,s.y0); pctx.lineTo(s.x1,s.y1); pctx.stroke(); }
-    else if(s.tool==='rect'){ pctx.strokeRect(Math.min(s.x0,s.x1),Math.min(s.y0,s.y1),Math.abs(s.x1-s.x0),Math.abs(s.y1-s.y0)); }
-    else if(s.tool==='ellipse'){ pctx.ellipse((s.x0+s.x1)/2,(s.y0+s.y1)/2,Math.abs(s.x1-s.x0)/2,Math.abs(s.y1-s.y0)/2,0,0,7); pctx.stroke(); }
+    pctx.lineWidth=size; pctx.lineCap='round'; pctx.lineJoin='round';
+    eachMirror(()=>{ pctx.beginPath();
+      if(s.tool==='line'){ pctx.moveTo(s.x0,s.y0); pctx.lineTo(s.x1,s.y1); pctx.stroke(); }
+      else if(s.tool==='rect'){ pctx.strokeRect(Math.min(s.x0,s.x1),Math.min(s.y0,s.y1),Math.abs(s.x1-s.x0),Math.abs(s.y1-s.y0)); }
+      else if(s.tool==='ellipse'){ pctx.ellipse((s.x0+s.x1)/2,(s.y0+s.y1)/2,Math.abs(s.x1-s.x0)/2,Math.abs(s.y1-s.y0)/2,0,0,7); pctx.stroke(); }
+    });
   }
   function pick(p){ const d=pctx.getImageData(Math.floor(p.x),Math.floor(p.y),1,1).data;
     if(d[3]===0)return; color='#'+[d[0],d[1],d[2]].map(v=>v.toString(16).padStart(2,'0')).join(''); syncColor(); }
@@ -1535,6 +1557,7 @@ const Paint = (()=>{
   function resetToTemplate(){ const src=tplSrc(item); if(!src){ alert('No template selected for this item. Pick one in the Texture panel first.'); return; }
     const img=new Image(); img.onload=()=>{ snap(); pctx.clearRect(0,0,W,W); pctx.drawImage(img,0,0,W,W); render(); }; img.src=src; }
   function clear(){ snap(); pctx.clearRect(0,0,W,W); render(); }
+  function fillAll(){ snap(); pctx.globalAlpha=opacity; pctx.globalCompositeOperation='source-over'; pctx.fillStyle=color; pctx.fillRect(0,0,W,W); resetCtx(); render(); }
   function apply(){ if(!item)return; item.tex=pc.toDataURL('image/png'); close(); renderAll(); }
 
   function setTool(t){ tool=t; document.querySelectorAll('.pm-tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===t)); }
@@ -1551,6 +1574,9 @@ const Paint = (()=>{
     $('pmOpacity').oninput=()=>{ opacity=+$('pmOpacity').value/100; $('pmOpacityLbl').textContent=$('pmOpacity').value; };
     $('pmTol').oninput=()=>{ tol=+$('pmTol').value; $('pmTolLbl').textContent=tol; };
     $('pmUndo').onclick=doUndo; $('pmRedo').onclick=doRedo; $('pmClear').onclick=clear; $('pmReset').onclick=resetToTemplate;
+    $('pmFillAll').onclick=fillAll;
+    $('pmMirrorX').onclick=()=>{ mirrorX=!mirrorX; $('pmMirrorX').classList.toggle('active',mirrorX); };
+    $('pmMirrorY').onclick=()=>{ mirrorY=!mirrorY; $('pmMirrorY').classList.toggle('active',mirrorY); };
     $('pmZoomIn').onclick=()=>setZoom(zoom*1.25); $('pmZoomOut').onclick=()=>setZoom(zoom/1.25); $('pmFit').onclick=fit;
     $('pmApply').onclick=apply; $('pmCancel').onclick=()=>{ if(confirm('Discard changes and close the editor?'))close(); };
     const c=$('pmCanvas');
@@ -1558,6 +1584,11 @@ const Paint = (()=>{
     window.addEventListener('pointerup',up);
     c.addEventListener('wheel',e=>{ e.preventDefault(); const p=toPc(e); setZoom(zoom*(e.deltaY<0?1.1:0.9), p.sx, p.sy); },{passive:false});
     window.addEventListener('resize',()=>{ if($('paintModal').classList.contains('open')){ sizeStage(); render(); } });
+    if(window.ResizeObserver) new ResizeObserver(()=>{
+      if(!$('paintModal').classList.contains('open')||!dc) return;
+      sizeStage();
+      if(needsFit && dc.width>10){ fit(); needsFit=false; } else render();
+    }).observe($('pmStage'));
     document.addEventListener('keydown',e=>{ if(!$('paintModal').classList.contains('open'))return;
       if(e.key===' '){ spaceDown=true; }
       if(e.ctrlKey&&e.key.toLowerCase()==='z'){ e.preventDefault(); doUndo(); }

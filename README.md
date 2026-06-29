@@ -28,8 +28,9 @@ No Workbench, no hand-editing configs. Just a photo edit and a few clicks.
 - **Placeable crates & containers** with custom cargo.
 - **Built-in paint editor** — an MS-Paint-style editor right inside the tool:
   load the vanilla UV layout as your canvas and paint it live (brush, eraser,
-  fill bucket, line/rect/ellipse, eyedropper, undo/redo, zoom/pan, color
-  swatches), then apply it straight to the item. No external editor needed.
+  fill bucket, fill-all, line/rect/ellipse, eyedropper, **horizontal/vertical
+  symmetry**, undo/redo, zoom/pan, color swatches, opacity), then apply it
+  straight to the item. No external editor needed.
 - **Paint-over UV templates** — or download the real vanilla UV layout to paint
   in Photoshop/GIMP and re-import.
 - **`types.xml` generator** so your items actually spawn in the central economy.
