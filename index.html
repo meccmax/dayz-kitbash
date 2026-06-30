@@ -1463,8 +1463,8 @@ const Paint = (()=>{
 
   // use clientWidth/Height (true layout size, unaffected by any visual page scaling)
   function sizeStage(){ const s=$('pmStage'); dc.width=Math.max(1,s.clientWidth); dc.height=Math.max(1,s.clientHeight); }
-  function fit(){ const m=Math.min(dc.width/W, dc.height/W)*0.94; zoom=m; panX=(dc.width-W*zoom)/2; panY=(dc.height-W*zoom)/2; render(); }
-  function setZoom(z,cx,cy){ cx=cx??dc.width/2; cy=cy??dc.height/2; const px=(cx-panX)/zoom, py=(cy-panY)/zoom;
+  function fit(){ const m=Math.min(dc.width/W, dc.height/W)*0.96; zoom=m; panX=(dc.width-W*zoom)/2; panY=(dc.height-W*zoom)/2; render(); }
+  function setZoom(z,cx,cy){ needsFit=false; cx=cx??dc.width/2; cy=cy??dc.height/2; const px=(cx-panX)/zoom, py=(cy-panY)/zoom;
     zoom=Math.max(0.05,Math.min(16,z)); panX=cx-px*zoom; panY=cy-py*zoom; render(); }
 
   function render(){
@@ -1503,7 +1503,7 @@ const Paint = (()=>{
   function resetCtx(){ pctx.globalAlpha=1; pctx.globalCompositeOperation='source-over'; }
 
   function down(e){
-    e.preventDefault(); try{ dc.setPointerCapture(e.pointerId); }catch(_){}
+    e.preventDefault(); needsFit=false; try{ dc.setPointerCapture(e.pointerId); }catch(_){}
     if(e.button===1 || spaceDown){ panning=true; last={x:e.clientX,y:e.clientY}; return; }
     const p=toPc(e);
     if(e.altKey || tool==='pick'){ pick(p); return; }
@@ -1587,7 +1587,7 @@ const Paint = (()=>{
     if(window.ResizeObserver) new ResizeObserver(()=>{
       if(!$('paintModal').classList.contains('open')||!dc) return;
       sizeStage();
-      if(needsFit && dc.width>10){ fit(); needsFit=false; } else render();
+      if(needsFit && dc.width>10) fit(); else render();   // keep auto-fitting until the user interacts
     }).observe($('pmStage'));
     document.addEventListener('keydown',e=>{ if(!$('paintModal').classList.contains('open'))return;
       if(e.key===' '){ spaceDown=true; }
