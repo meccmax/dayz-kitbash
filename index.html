@@ -429,6 +429,13 @@
         <button class="ghost" id="pmMirrorX" title="Mirror left/right" style="flex:1">⇋ Horizontal</button>
         <button class="ghost" id="pmMirrorY" title="Mirror top/bottom" style="flex:1">⇅ Vertical</button>
       </div>
+      <div class="pm-lbl">Pattern / reuse</div>
+      <div class="pm-row">
+        <button class="ghost" id="pmCopy" title="Copy this texture (Ctrl+C)" style="flex:1">📋 Copy</button>
+        <button class="ghost" id="pmPaste" title="Paste a copied texture or clipboard image (Ctrl+V)" style="flex:1">📥 Paste</button>
+      </div>
+      <button class="ghost" id="pmExport" style="width:100%">⤓ Export PNG</button>
+      <div class="hint">Copy a finished pattern, open another item, then Paste to reuse it across a whole set.</div>
       <div class="divider"></div>
       <div class="hint">Scroll to zoom · middle-drag or Space-drag to pan · Alt-click to pick a color. Output: <span id="pmRes"></span>.</div>
     </div>
@@ -1366,7 +1373,7 @@ fileInput.onchange=e=>{ if(e.target.files[0])loadImageFile(e.target.files[0]); f
 drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('drag');});
 drop.addEventListener('dragleave',()=>drop.classList.remove('drag'));
 drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('drag'); const f=e.dataTransfer.files[0]; if(f&&f.type.startsWith('image/'))loadImageFile(f);});
-document.addEventListener('paste',e=>{ if(!current())return; for(const it of e.clipboardData.items){ if(it.type.startsWith('image/')){ loadImageFile(it.getAsFile()); e.preventDefault(); break; } } });
+document.addEventListener('paste',e=>{ if(document.getElementById('paintModal').classList.contains('open'))return; if(!current())return; for(const it of e.clipboardData.items){ if(it.type.startsWith('image/')){ loadImageFile(it.getAsFile()); e.preventDefault(); break; } } });
 $('btnClearTex').onclick=()=>{ const it=current(); if(it){it.tex=null;renderAll();} };
 $('btnPaint').onclick=()=>{ const it=current(); if(it)Paint.open(it); };
 
@@ -1423,6 +1430,7 @@ const Paint = (()=>{
   let tool='brush', color='#e8772e', size=24, opacity=1, tol=32;
   let drawing=false, panning=false, spaceDown=false, last=null, start=null, preview=null;
   let mirrorX=false, mirrorY=false, needsFit=false;
+  let PAINT_CLIP=null;   // session clipboard — a copied texture, reusable across items
   const undo=[], redo=[];
   // run a pc-drawing op once normally + once per enabled mirror axis (via canvas transform)
   function eachMirror(fn){ fn();
@@ -1560,6 +1568,20 @@ const Paint = (()=>{
   function fillAll(){ snap(); pctx.globalAlpha=opacity; pctx.globalCompositeOperation='source-over'; pctx.fillStyle=color; pctx.fillRect(0,0,W,W); resetCtx(); render(); }
   function apply(){ if(!item)return; item.tex=pc.toDataURL('image/png'); close(); renderAll(); }
 
+  // ---- copy / paste / export (reuse patterns across a set) ----
+  function flashBtn(id,txt){ const b=$(id); const o=b.textContent; b.textContent=txt; setTimeout(()=>b.textContent=o,1100); }
+  function copyTex(){ PAINT_CLIP=pc.toDataURL('image/png');
+    if(pc.toBlob) pc.toBlob(b=>{ try{ navigator.clipboard.write([new ClipboardItem({'image/png':b})]); }catch(_){} },'image/png');
+    flashBtn('pmCopy','copied ✓'); }
+  function drawOnto(src){ const img=new Image(); img.onload=()=>{ snap(); pctx.globalAlpha=1; pctx.globalCompositeOperation='source-over'; pctx.drawImage(img,0,0,W,W); render(); }; img.src=src; }
+  async function pasteTex(){
+    try{ const items=await navigator.clipboard.read();
+      for(const it of items){ const t=it.types.find(x=>x.startsWith('image/')); if(t){ const b=await it.getType(t); drawOnto(URL.createObjectURL(b)); return; } } }catch(_){}
+    if(PAINT_CLIP) drawOnto(PAINT_CLIP);
+    else alert('Nothing to paste yet. Use Copy here first, or copy an image to your clipboard.');
+  }
+  function exportPng(){ const a=document.createElement('a'); a.href=pc.toDataURL('image/png'); a.download=((item&&item.cls)||'texture')+'.png'; a.click(); }
+
   function setTool(t){ tool=t; document.querySelectorAll('.pm-tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===t)); }
   function syncColor(){ $('pmColor').value=color; $('pmColorHex').textContent=color;
     document.querySelectorAll('.pm-swatch').forEach(s=>s.classList.toggle('active',s.dataset.c===color)); }
@@ -1575,6 +1597,7 @@ const Paint = (()=>{
     $('pmTol').oninput=()=>{ tol=+$('pmTol').value; $('pmTolLbl').textContent=tol; };
     $('pmUndo').onclick=doUndo; $('pmRedo').onclick=doRedo; $('pmClear').onclick=clear; $('pmReset').onclick=resetToTemplate;
     $('pmFillAll').onclick=fillAll;
+    $('pmCopy').onclick=copyTex; $('pmPaste').onclick=pasteTex; $('pmExport').onclick=exportPng;
     $('pmMirrorX').onclick=()=>{ mirrorX=!mirrorX; $('pmMirrorX').classList.toggle('active',mirrorX); };
     $('pmMirrorY').onclick=()=>{ mirrorY=!mirrorY; $('pmMirrorY').classList.toggle('active',mirrorY); };
     $('pmZoomIn').onclick=()=>setZoom(zoom*1.25); $('pmZoomOut').onclick=()=>setZoom(zoom/1.25); $('pmFit').onclick=fit;
@@ -1591,12 +1614,20 @@ const Paint = (()=>{
     }).observe($('pmStage'));
     document.addEventListener('keydown',e=>{ if(!$('paintModal').classList.contains('open'))return;
       if(e.key===' '){ spaceDown=true; }
-      if(e.ctrlKey&&e.key.toLowerCase()==='z'){ e.preventDefault(); doUndo(); }
-      else if(e.ctrlKey&&(e.key.toLowerCase()==='y')){ e.preventDefault(); doRedo(); }
-      else if(!e.ctrlKey){ const m={b:'brush',e:'eraser',g:'fill',i:'pick',l:'line',r:'rect',o:'ellipse'}[e.key.toLowerCase()]; if(m)setTool(m);
+      const k=e.key.toLowerCase();
+      if(e.ctrlKey&&k==='z'){ e.preventDefault(); doUndo(); }
+      else if(e.ctrlKey&&k==='y'){ e.preventDefault(); doRedo(); }
+      else if(e.ctrlKey&&k==='c'){ e.preventDefault(); copyTex(); }
+      else if(e.ctrlKey&&k==='v'){ e.preventDefault(); pasteTex(); }
+      else if(!e.ctrlKey){ const m={b:'brush',e:'eraser',g:'fill',i:'pick',l:'line',r:'rect',o:'ellipse'}[k]; if(m)setTool(m);
         if(e.key==='Escape') $('pmCancel').click(); }
     });
     document.addEventListener('keyup',e=>{ if(e.key===' ')spaceDown=false; });
+    // OS clipboard image paste while the editor is open
+    document.addEventListener('paste',e=>{ if(!$('paintModal').classList.contains('open'))return;
+      for(const it of (e.clipboardData?.items||[])){ if(it.type.startsWith('image/')){ drawOnto(URL.createObjectURL(it.getAsFile())); e.preventDefault(); e.stopPropagation(); return; } }
+      if(PAINT_CLIP){ drawOnto(PAINT_CLIP); e.preventDefault(); }
+    }, true);
   }
   return { open, init };
 })();
