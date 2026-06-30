@@ -259,9 +259,44 @@
           </div>
           <div class="chk"><input type="checkbox" id="fFullHealth"><label for="fFullHealth" class="small" id="fullHealthLbl">Emit full damage tiers (healthLevels)</label></div>
           <div class="field">
-            <label class="lbl">Attachments (one per line)</label>
-            <textarea id="fAtt" rows="3" spellcheck="false" placeholder="e.g. Shoulder&#10;VestGrenadeA"></textarea>
-            <div class="hint">Prefilled from the base's known slots. Leave blank for none.</div>
+            <label class="lbl">Attachments / proxy slots (one per line)</label>
+            <textarea id="fAtt" rows="3" spellcheck="false" placeholder="e.g. Pistol&#10;Belt_Back&#10;Shoulder"></textarea>
+            <div class="hint">The proxy/attachment points the item exposes (must already exist on the base model).</div>
+          </div>
+          <div class="chk"><input type="checkbox" id="fModdedOn"><label for="fModdedOn" class="small">Full modded-clothing config (custom model, wiring, armor, repair…)</label></div>
+          <div id="moddedFields" style="display:none">
+            <div class="field"><label class="lbl">Model (.p3d path)</label><input id="fModel" spellcheck="false" placeholder="\MyMod\assets\item.p3d"></div>
+            <div class="row2">
+              <div class="field"><label class="lbl">ClothingTypes — male model</label><input id="fModelM" spellcheck="false"></div>
+              <div class="field"><label class="lbl">female model</label><input id="fModelF" spellcheck="false"></div>
+            </div>
+            <div class="row2">
+              <div class="field"><label class="lbl">inventorySlot (comma)</label><input id="fInvSlot" spellcheck="false" placeholder="Legs"></div>
+              <div class="field"><label class="lbl">itemInfo (comma)</label><input id="fItemInfo" spellcheck="false" placeholder="Clothing,Legs"></div>
+            </div>
+            <div class="row3">
+              <div class="field"><label class="lbl">ragQuantity</label><input id="fRagQty" type="number" min="0"></div>
+              <div class="field"><label class="lbl">varWetMax</label><input id="fVarWet" type="number" step="0.1" min="0"></div>
+              <div class="field"><label class="lbl">quickBarBonus</label><input id="fQuickBar" type="number" min="0"></div>
+            </div>
+            <div class="row2">
+              <div class="field"><label class="lbl">repairableWithKits (comma)</label><input id="fRepKits" spellcheck="false" placeholder="4,5"></div>
+              <div class="field"><label class="lbl">repairCosts (comma)</label><input id="fRepCosts" spellcheck="false" placeholder="30,25"></div>
+            </div>
+            <div class="row2">
+              <div class="field"><label class="lbl">ContinuousActions (comma)</label><input id="fContAct" spellcheck="false" placeholder="AT_WRING_CLOTHES"></div>
+              <div class="field"><label class="lbl">simulation</label><input id="fSim" spellcheck="false" placeholder="clothing"></div>
+            </div>
+            <div class="field"><label class="lbl">Damage rvmat root (for full healthLevels — enable "full damage tiers" above)</label>
+              <input id="fDmgRoot" spellcheck="false" placeholder="\MyMod\assets\...\Pants">
+              <div class="hint">Kitbash appends <code>.rvmat</code> / <code>_damage.rvmat</code> / <code>_destruct.rvmat</code> across the 5 tiers.</div>
+            </div>
+            <div class="chk"><input type="checkbox" id="fGArmor"><label for="fGArmor" class="small">Melee/Infected armor (GlobalArmor)</label></div>
+            <div class="row3" id="gArmorRow" style="display:none">
+              <div class="field"><label class="lbl">Health dmg</label><input id="fGAHealth" type="number" step="0.05"></div>
+              <div class="field"><label class="lbl">Blood dmg</label><input id="fGABlood" type="number" step="0.05"></div>
+              <div class="field"><label class="lbl">Shock dmg</label><input id="fGAShock" type="number" step="0.05"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -778,6 +813,11 @@ function defaultItem(baseCls){
     folder:null,             // data subfolder for custom base
     reqAddons:[],            // extra requiredAddons for custom base's parent mod
     cArmor:false, cSlots:3,  // custom base: has armor? texture slot count
+    // full modded-clothing fields (all optional; omitted when blank)
+    modded:false, model:'', modelM:'', modelF:'', invSlot:'', itemInfo:'', simulation:'',
+    ragQty:null, varWetMax:null, quickBar:null, repairKits:'', repairCosts:'', contActions:'',
+    dmgRoot:'',              // rvmat root for full healthLevels (modded base, no _suffix/.rvmat)
+    garmor:false, garmorHealth:0.9, garmorBlood:0.9, garmorShock:1.0,
     res:2048, tex:null       // tex = dataURL (PNG)
   };
   if(isCustom){ it.customBase=true; it.folder='items'; }
@@ -878,6 +918,15 @@ function renderEditor(){
   $('fullHealthLbl').textContent = prof.roots ? 'Emit full damage tiers (healthLevels)' : 'Full damage tiers — n/a for this base (uses hitpoints only)';
   $('fullHealthLbl').style.opacity = prof.roots?'1':'0.5';
   $('fAtt').value = (it.att!=null ? it.att : (prof.att||[])).join('\n');
+  // full modded-clothing fields
+  $('fModdedOn').checked=!!it.modded;
+  $('moddedFields').style.display=it.modded?'block':'none';
+  $('fModel').value=it.model||''; $('fModelM').value=it.modelM||''; $('fModelF').value=it.modelF||'';
+  $('fInvSlot').value=it.invSlot||''; $('fItemInfo').value=it.itemInfo||''; $('fSim').value=it.simulation||'';
+  $('fRagQty').value=it.ragQty??''; $('fVarWet').value=it.varWetMax??''; $('fQuickBar').value=it.quickBar??'';
+  $('fRepKits').value=it.repairKits||''; $('fRepCosts').value=it.repairCosts||''; $('fContAct').value=it.contActions||''; $('fDmgRoot').value=it.dmgRoot||'';
+  $('fGArmor').checked=!!it.garmor; $('gArmorRow').style.display=it.garmor?'grid':'none';
+  $('fGAHealth').value=it.garmorHealth??0.9; $('fGABlood').value=it.garmorBlood??0.9; $('fGAShock').value=it.garmorShock??1.0;
   drawTex(it);
   $('texInfo').textContent = it.tex ? `Texture loaded · exports as ${it.cls}.png (${it.res}×${it.res})` : 'No texture yet. Paint a PNG in your editor, then drop it here.';
 }
@@ -1005,9 +1054,30 @@ function parseItem(name,base,inner){
   const isz=inner.match(/itemSize\[\]\s*=\s*\{\s*(\d+)\s*,\s*(\d+)\s*\}/i); if(isz){ it.sizeW=+isz[1]; it.sizeH=+isz[2]; }
   const hp=g(/hitpoints\s*=\s*(\d+)/); if(hp!=null)it.hp=+hp;
   if(/hiddenSelectionsMaterials/i.test(inner)) it.adv=true;
-  if(/healthLevels/i.test(inner)){ it.adv=true; it.fullHealth=true; }
+  if(/healthLevels/i.test(inner)){ it.adv=true; it.fullHealth=true;
+    const hl=inner.match(/healthLevels\[\]\s*=\s*\{[\s\S]*?\{\s*1\s*,\s*\{\s*"([^"]+?)(_damage|_destruct)?\.rvmat"/i);
+    if(hl && !BASE_BY_CLS[base]){ it.dmgRoot=hl[1]; it.modded=true; } }
   const att=inner.match(/attachments\[\]\s*=\s*\{([\s\S]*?)\}/i);
   if(att){ const list=[...att[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]); if(list.length){ it.adv=true; it.att=list; } }
+  // full modded-clothing fields
+  const model=g(/\bmodel\s*=\s*"([^"]*)"/); if(model){ it.model=model; it.modded=true; }
+  const ct=inner.match(/class\s+ClothingTypes\s*\{([\s\S]*?)\}/i);
+  if(ct){ const mm=ct[1].match(/male\s*=\s*"([^"]*)"/i), mf=ct[1].match(/female\s*=\s*"([^"]*)"/i);
+    if(mm)it.modelM=mm[1]; if(mf)it.modelF=mf[1]; if(mm||mf)it.modded=true; }
+  const inv=inner.match(/inventorySlot\[\]\s*=\s*\{([\s\S]*?)\}/i); if(inv){ it.invSlot=[...inv[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]).join(', '); it.modded=true; }
+  const iinfo=inner.match(/itemInfo\[\]\s*=\s*\{([\s\S]*?)\}/i); if(iinfo){ it.itemInfo=[...iinfo[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]).join(', '); it.modded=true; }
+  const sim=g(/\bsimulation\s*=\s*"([^"]*)"/); if(sim){ it.simulation=sim; it.modded=true; }
+  const rqy=g(/\bragQuantity\s*=\s*(\d+)/); if(rqy!=null){ it.ragQty=+rqy; it.modded=true; }
+  const vwm=g(/\bvarWetMax\s*=\s*([\d.]+)/); if(vwm!=null){ it.varWetMax=+vwm; it.modded=true; }
+  const qbb=g(/\bquickBarBonus\s*=\s*(\d+)/); if(qbb!=null){ it.quickBar=+qbb; it.modded=true; }
+  const rkit=inner.match(/repairableWithKits\[\]\s*=\s*\{([^}]*)\}/i); if(rkit){ it.repairKits=rkit[1].replace(/\s+/g,''); it.modded=true; }
+  const rcost=inner.match(/repairCosts\[\]\s*=\s*\{([^}]*)\}/i); if(rcost){ it.repairCosts=rcost[1].replace(/\s+/g,''); it.modded=true; }
+  const cact=inner.match(/Continuo\w*Actions\[\]\s*=\s*\{([\s\S]*?)\}/i); if(cact){ it.contActions=[...cact[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]).join(', '); it.modded=true; }
+  if(/class\s+GlobalArmor/i.test(inner)){ it.garmor=true; it.adv=true; it.modded=true;
+    const m1=inner.match(/class\s+Melee\b[\s\S]*?class\s+Health\s*\{\s*damage\s*=\s*([\d.]+)/i); if(m1)it.garmorHealth=+m1[1];
+    const m2=inner.match(/class\s+Melee\b[\s\S]*?class\s+Blood\s*\{\s*damage\s*=\s*([\d.]+)/i); if(m2)it.garmorBlood=+m2[1];
+    const m3=inner.match(/class\s+Melee\b[\s\S]*?class\s+Shock\s*\{\s*damage\s*=\s*([\d.]+)/i); if(m3)it.garmorShock=+m3[1];
+  }
   return it;
 }
 
@@ -1063,13 +1133,32 @@ function genConfig(){
 
 function arr(name,vals){ return '\t\t'+name+'[]=\n\t\t{\n'+vals.map(x=>'\t\t\t"'+x+'"').join(',\n')+'\n\t\t};\n'; }
 function matPath(it){ return `${proj.modName}\\data\\${meta(it).folder}\\${it.cls}.rvmat`; }
-function genHealth(roots,hp){
+function listOf(s){ return String(s==null?'':s).split(',').map(x=>x.trim()).filter(Boolean); }
+function globalHealthHp(hp){ return '\t\t\tclass GlobalHealth\n\t\t\t{\n\t\t\t\tclass Health\n\t\t\t\t{\n\t\t\t\t\thitpoints='+hp+';\n\t\t\t\t};\n\t\t\t};\n'; }
+function globalHealthRoots(roots,hp){
   const tiers=[[1,''],[0.7,''],[0.5,'_damage'],[0.3,'_damage'],[0,'_destruct']];
-  let s='\t\tclass DamageSystem\n\t\t{\n\t\t\tclass GlobalHealth\n\t\t\t{\n\t\t\t\tclass Health\n\t\t\t\t{\n';
+  let s='\t\t\tclass GlobalHealth\n\t\t\t{\n\t\t\t\tclass Health\n\t\t\t\t{\n';
   if(hp!=null&&hp!=='') s+='\t\t\t\t\thitpoints='+hp+';\n';
   s+='\t\t\t\t\thealthLevels[]=\n\t\t\t\t\t{\n';
   s+=tiers.map(([lvl,suf])=>{ const inner=roots.map(r=>'"'+r+suf+'.rvmat"').join(', '); return '\t\t\t\t\t\t{'+lvl+', {'+inner+'}}'; }).join(',\n')+'\n';
-  s+='\t\t\t\t\t};\n\t\t\t\t};\n\t\t\t};\n\t\t};\n';
+  s+='\t\t\t\t\t};\n\t\t\t\t};\n\t\t\t};\n';
+  return s;
+}
+function globalArmorBlock(it){
+  const h=fmt(it.garmorHealth!=null?it.garmorHealth:0.9), bl=fmt(it.garmorBlood!=null?it.garmorBlood:0.9), sh=fmt(it.garmorShock!=null?it.garmorShock:1.0);
+  const grp=n=>'\t\t\t\tclass '+n+'\n\t\t\t\t{\n\t\t\t\t\tclass Health{damage='+h+';};\n\t\t\t\t\tclass Blood{damage='+bl+';};\n\t\t\t\t\tclass Shock{damage='+sh+';};\n\t\t\t\t};\n';
+  return '\t\t\tclass GlobalArmor\n\t\t\t{\n'+grp('Melee')+grp('Infected')+'\t\t\t};\n';
+}
+function genDamage(it,prof){
+  const roots = (prof&&prof.roots) || (it.dmgRoot&&it.dmgRoot.trim() ? [it.dmgRoot.trim()] : null);
+  const fullH = it.fullHealth && roots;
+  const hp = (it.hp!=null&&it.hp!=='');
+  if(!fullH && !hp && !it.garmor) return '';
+  let s='\t\tclass DamageSystem\n\t\t{\n';
+  if(fullH) s+=globalHealthRoots(roots,it.hp);
+  else if(hp) s+=globalHealthHp(it.hp);
+  if(it.garmor) s+=globalArmorBlock(it);
+  s+='\t\t};\n';
   return s;
 }
 
@@ -1097,21 +1186,37 @@ function genItem(it){
     return s;
   }
 
-  // backpack wiring (advanced, from profile)
-  if(adv&&prof.inv){ s+=arr('inventorySlot',prof.inv); if(prof.info)s+=arr('itemInfo',prof.info); if(prof.rot!=null)s+='\t\trotationFlags='+prof.rot+';\n'; }
-  // attachments (advanced)
-  const att = adv ? (it.att||prof.att) : null;
+  // custom model + simulation (modded clothing)
+  if(it.model) s+='\t\tmodel="'+it.model+'";\n';
+  if(it.simulation) s+='\t\tsimulation="'+it.simulation+'";\n';
+  const cont=listOf(it.contActions); if(cont.length) s+=arr('ContinuousActions',cont);
+
+  // inventory slot: custom override > backpack profile > protector base
+  let invSlot=listOf(it.invSlot);
+  if(!invSlot.length && adv && prof.inv) invSlot=prof.inv;
+  if(!invSlot.length && b.protector) invSlot=['ProtectorCase'];
+  if(invSlot.length) s+=arr('inventorySlot',invSlot);
+
+  // attachments / proxy slots
+  const att = (it.att&&it.att.length) ? it.att : (adv?prof.att:null);
   if(att&&att.length) s+=arr('attachments',att);
 
-  if(it.cargoW!=null) s+='\t\titemsCargoSize[]={'+it.cargoW+','+it.cargoH+'};\n';
+  // itemInfo: custom override > backpack profile
+  let info=listOf(it.itemInfo); if(!info.length && adv && prof.info) info=prof.info;
+  if(info.length) s+=arr('itemInfo',info);
+  if(adv&&prof.rot!=null) s+='\t\trotationFlags='+prof.rot+';\n';
+
   if(it.sizeW!=null&&it.sizeW!==''&&it.sizeH!=null&&it.sizeH!=='') s+='\t\titemSize[]={'+it.sizeW+','+it.sizeH+'};\n';
+  if(it.cargoW!=null) s+='\t\titemsCargoSize[]={'+it.cargoW+','+it.cargoH+'};\n';
+  if(it.weight!=null&&it.weight!=='') s+='\t\tweight='+it.weight+';\n';
+  if(it.ragQty!=null&&it.ragQty!=='') s+='\t\tragQuantity='+it.ragQty+';\n';
+  if(it.varWetMax!=null&&it.varWetMax!=='') s+='\t\tvarWetMax='+fmt(it.varWetMax)+';\n';
+  if(it.quickBar!=null&&it.quickBar!=='') s+='\t\tquickBarBonus='+it.quickBar+';\n';
   if(it.heat!=null)   s+='\t\theatIsolation='+fmt(it.heat)+';\n';
   if(b.armor){ if(it.melee!=null)s+='\t\tmelee='+fmt(it.melee)+';\n'; if(it.firearm!=null)s+='\t\tfirearm='+fmt(it.firearm)+';\n'; }
-  if(it.weight!=null&&it.weight!=='') s+='\t\tweight='+it.weight+';\n';
+  const rk=listOf(it.repairKits); if(rk.length) s+='\t\trepairableWithKits[]={'+rk.join(',')+'};\n';
+  const rc=listOf(it.repairCosts); if(rc.length) s+='\t\trepairCosts[]={'+rc.join(',')+'};\n';
   if(it.vis!=null&&it.vis!=='') s+='\t\tvisibilityModifier='+fmt(it.vis)+';\n';
-
-  // protector case wiring (inventory slot)
-  if(b.protector) s+=arr('inventorySlot',['ProtectorCase']);
 
   // hidden selections (named slots the material/texture binds to)
   let sel=null;
@@ -1121,7 +1226,10 @@ function genItem(it){
   else if(adv&&prof.sel) sel=prof.sel;
   if(sel) s+=arr('hiddenSelections',sel);
 
-  if(b.armband){
+  // ClothingTypes: custom male/female models > armband default
+  if(it.modelM||it.modelF){
+    s+='\t\tclass ClothingTypes\n\t\t{\n\t\t\tmale="'+(it.modelM||it.modelF)+'";\n\t\t\tfemale="'+(it.modelF||it.modelM)+'";\n\t\t};\n';
+  } else if(b.armband){
     s+='\t\trotationFlags=34;\n';
     s+='\t\tclass ClothingTypes\n\t\t{\n\t\t\tmale="\\DZ\\characters\\tops\\armbend_dynamic_m.p3d";\n\t\t\tfemale="\\DZ\\characters\\tops\\armbend_dynamic_f.p3d";\n\t\t};\n';
   }
@@ -1132,9 +1240,8 @@ function genItem(it){
   // materials (advanced glow/custom rvmat)
   if(adv&&it.rvmat){ const mp=matPath(it); s+=arr('hiddenSelectionsMaterials',Array.from({length:slots},()=>mp)); }
 
-  // durability
-  if(adv&&it.fullHealth&&prof.roots) s+=genHealth(prof.roots,it.hp);
-  else if(it.hp!=null&&it.hp!=='') s+='\t\tclass DamageSystem\n\t\t{\n\t\t\tclass GlobalHealth\n\t\t\t{\n\t\t\t\tclass Health\n\t\t\t\t{\n\t\t\t\t\thitpoints='+it.hp+';\n\t\t\t\t};\n\t\t\t};\n\t\t};\n';
+  // damage system (health tiers + GlobalArmor)
+  s+=genDamage(it,prof);
 
   s+='\t};\n';
   return s;
@@ -1353,6 +1460,15 @@ $('btnTplCmd').onclick=()=>navigator.clipboard.writeText(TPL_CMD);
 $('fAdvItem').addEventListener('change',()=>{ const it=current(); if(!it)return; it.adv=$('fAdvItem').checked; renderEditor(); renderOutputs(); renderList(); });
 $('fFullHealth').addEventListener('change',()=>{ const it=current(); if(!it)return; it.fullHealth=$('fFullHealth').checked; renderOutputs(); });
 $('fAtt').addEventListener('input',()=>{ const it=current(); if(!it)return; it.att=$('fAtt').value.split('\n').map(x=>x.trim()).filter(Boolean); renderOutputs(); });
+// full modded-clothing fields
+$('fModdedOn').addEventListener('change',()=>{ const it=current(); if(!it)return; it.modded=$('fModdedOn').checked; $('moddedFields').style.display=it.modded?'block':'none'; renderOutputs(); });
+function bindModded(id,key,parse){ $(id).addEventListener('input',()=>{ const it=current(); if(!it)return; let v=$(id).value; if(parse)v=parse(v); it[key]=v; renderOutputs(); }); }
+bindModded('fModel','model'); bindModded('fModelM','modelM'); bindModded('fModelF','modelF');
+bindModded('fInvSlot','invSlot'); bindModded('fItemInfo','itemInfo'); bindModded('fSim','simulation');
+bindModded('fRepKits','repairKits'); bindModded('fRepCosts','repairCosts'); bindModded('fContAct','contActions'); bindModded('fDmgRoot','dmgRoot');
+bindModded('fRagQty','ragQty',v=>v===''?null:parseInt(v)); bindModded('fVarWet','varWetMax',v=>v===''?null:parseFloat(v)); bindModded('fQuickBar','quickBar',v=>v===''?null:parseInt(v));
+bindModded('fGAHealth','garmorHealth',v=>v===''?0.9:parseFloat(v)); bindModded('fGABlood','garmorBlood',v=>v===''?0.9:parseFloat(v)); bindModded('fGAShock','garmorShock',v=>v===''?1:parseFloat(v));
+$('fGArmor').addEventListener('change',()=>{ const it=current(); if(!it)return; it.garmor=$('fGArmor').checked; $('gArmorRow').style.display=it.garmor?'grid':'none'; renderOutputs(); });
 const rvmatDrop=$('rvmatDrop'), rvmatInput=$('rvmatInput');
 function loadRvmat(file){ const it=current(); if(!it||!file)return; const r=new FileReader();
   r.onload=()=>{ const u=new Uint8Array(r.result); let bin=''; for(let i=0;i<u.length;i++)bin+=String.fromCharCode(u[i]); it.rvmat={name:file.name,b64:btoa(bin)}; renderEditor(); renderOutputs(); };
