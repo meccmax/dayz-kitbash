@@ -88,6 +88,22 @@
   .pm-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-bottom:10px}
   .pm-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:10px 0 4px}
   #pmZoomLbl{font-size:12px;color:var(--muted);min-width:42px;text-align:center}
+  /* ---- help ---- */
+  #helpModal{position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:60;display:none;align-items:flex-start;justify-content:center;padding:38px 16px;overflow:auto}
+  #helpModal.open{display:flex}
+  .help-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;max-width:780px;width:100%}
+  .help-head{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);border-radius:10px 10px 0 0;z-index:1}
+  .help-head h2{margin:0;font-size:16px}
+  .help-head .logo{width:28px;height:28px;font-size:13px}
+  .help-body{padding:18px;line-height:1.6;font-size:13.5px}
+  .help-body h3{color:var(--accent2);font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin:20px 0 6px}
+  .help-body h3:first-child{margin-top:0}
+  .help-body p{margin:6px 0}
+  .help-body ul{margin:6px 0;padding-left:20px} .help-body li{margin:3px 0}
+  .help-body code{background:#100d0b;border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12px;font-family:var(--mono)}
+  .help-body .note{background:#2a1f12;border:1px solid var(--accent);border-radius:6px;padding:10px 12px;margin:12px 0}
+  .help-body .note b{color:var(--accent2)}
+  .help-body .ok{color:var(--good)} .help-body .no{color:var(--bad)}
 </style>
 </head>
 <body>
@@ -98,6 +114,7 @@
   </div>
   <div class="top-actions">
     <span id="saveDot" class="small" style="align-self:center;color:var(--good);opacity:0.35;margin-right:4px" title="Autosaved to this browser">saved</span>
+    <button class="ghost" id="btnHelp" title="How Kitbash works, and what it can/can't do">? Help</button>
     <button class="ghost" id="btnNew">New Project</button>
     <button class="ghost" id="btnImportCpp">Import .cpp</button>
     <button class="ghost" id="btnSaveProj">Save .json</button>
@@ -265,6 +282,9 @@
           </div>
           <div class="chk"><input type="checkbox" id="fModdedOn"><label for="fModdedOn" class="small">Full modded-clothing config (custom model, wiring, armor, repair…)</label></div>
           <div id="moddedFields" style="display:none">
+            <div class="hint" style="border:1px solid var(--accent);border-radius:6px;padding:8px 10px;margin-bottom:10px;background:#2a1f12">
+              Generates the full config <b>around a model you supply</b>. Proxy/attachment <i>slots</i> are config (Kitbash writes them); the proxy <i>geometry</i> lives in the <code>.p3d</code> (Object Builder) — Kitbash can't create models. <a class="link" href="#" id="helpFromModded">More →</a>
+            </div>
             <div class="field"><label class="lbl">Model (.p3d path)</label><input id="fModel" spellcheck="false" placeholder="\MyMod\assets\item.p3d"></div>
             <div class="row2">
               <div class="field"><label class="lbl">ClothingTypes — male model</label><input id="fModelM" spellcheck="false"></div>
@@ -415,6 +435,71 @@
         </p>
       </div>
       <div class="status" id="expStatus"></div>
+    </div>
+  </div>
+</div>
+
+<!-- HELP -->
+<div id="helpModal">
+  <div class="help-card">
+    <div class="help-head">
+      <div class="logo">KB</div>
+      <h2>How Kitbash works</h2>
+      <span style="flex:1"></span>
+      <button class="ghost" id="btnHelpClose">Close</button>
+    </div>
+    <div class="help-body">
+      <h3>What Kitbash is</h3>
+      <p>Kitbash builds the <b>config and textures</b> for a DayZ clothing/gear mod — it generates
+      <code>config.cpp</code>, <code>types.xml</code>, and a build script that packs a ready-to-deploy PBO.
+      It is a <b>config + texture</b> tool. It does <span class="no">not</span> create 3D models.</p>
+
+      <h3>The basic flow</h3>
+      <ul>
+        <li><b>Pick a base item</b> (left dropdown) — any vanilla item, or <code>＋ Custom / modded base…</code> to inherit from another mod.</li>
+        <li><b>Set stats</b> — cargo, thermals, armor, durability, weight, size.</li>
+        <li><b>Add a texture</b> — drop/paste an image, or click <b>🖌 Paint / edit texture</b> to paint it in-app over the vanilla UV layout.</li>
+        <li><b>Export Mod</b> — writes <code>&lt;ModName&gt;/config.cpp</code>, your PNGs, and <code>build.ps1</code>.</li>
+        <li><b>Run <code>build.ps1</code></b> in that folder — converts PNG→PAA and packs the PBO (needs DayZ Tools).</li>
+      </ul>
+
+      <h3>UV templates</h3>
+      <p>To paint over the real vanilla layouts, run <code>build-templates.ps1</code> once. It extracts the
+      vanilla textures from your DayZ install into <code>templates/</code> (needs DayZ + DayZ Tools). They are
+      <b>not shipped</b> with Kitbash — they're Bohemia's game assets.</p>
+
+      <h3>Loot / types.xml</h3>
+      <p>Custom items won't spawn until they're in the economy. The <b>types.xml</b> tab generates the loot
+      entries — merge them into your mission (tune the defaults in the Project tab).</p>
+
+      <h3>Proxies &amp; attachments — read this</h3>
+      <p>A "proxy" (a holster, sheath, NVG mount, grenade slot…) has <b>two layers</b>:</p>
+      <ul>
+        <li><span class="ok">Config layer</span> — the <code>attachments[]</code> slots an item exposes.
+        <b>Kitbash does this</b> (Advanced → <i>Attachments / proxy slots</i>), and its importer reads them.</li>
+        <li><span class="no">Model layer</span> — the actual proxy <b>point baked into the item's <code>.p3d</code></b>,
+        authored in Object Builder. <b>Kitbash can't create this.</b></li>
+      </ul>
+      <div class="note"><b>So:</b> if a base model already has the proxy points (a vanilla vest's grenade slots, a
+      modded item you inherit from), Kitbash wires the slots and you're done. Adding a <b>brand-new</b> proxy
+      point to a model needs that model in Object Builder — Kitbash only writes the config around it.</div>
+
+      <h3>Modded / custom-model clothing</h3>
+      <p>If your mod ships its own model (its own <code>.p3d</code>), use <b>Advanced → Full modded-clothing config</b>:
+      set the <code>model</code> path, ClothingTypes, inventory slot, proxy/attachment slots, armor, repair, etc.
+      Kitbash generates the entire config <b>around a model you supply</b>. You bring the <code>.p3d</code>; Kitbash does the rest.</p>
+
+      <h3>Import an existing mod</h3>
+      <p><b>Import .cpp</b> reads an existing <code>config.cpp</code> back into editable items — base, stats,
+      proxy slots, damage tiers, modded-clothing fields. Note: textures and <code>.rvmat</code> files aren't in
+      the config, so re-attach them before exporting.</p>
+
+      <h3>Good to know</h3>
+      <ul>
+        <li>Work is <b>autosaved</b> in this browser; use <b>Save .json</b> to back up or share a project.</li>
+        <li>Fully offline — no network, no telemetry. See the repo's <code>SECURITY.md</code>.</li>
+        <li>Run it from <code>localhost</code> (e.g. <code>run.bat</code>) so templates load and folder-export works.</li>
+      </ul>
     </div>
   </div>
 </div>
@@ -1517,6 +1602,10 @@ bindEcon('eRestock','restock',1); bindEcon('eCost','cost',1); bindEcon('eUsages'
 $('eCategory').addEventListener('change',()=>{ ensureEcon().category=$('eCategory').value; renderOutputs(); });
 $('eInclude').addEventListener('change',()=>{ ensureEcon().include=$('eInclude').checked; renderOutputs(); });
 $('eSkipCrates').addEventListener('change',()=>{ ensureEcon().skipCrates=$('eSkipCrates').checked; renderOutputs(); });
+$('btnHelp').onclick=()=>$('helpModal').classList.add('open');
+$('helpFromModded').onclick=e=>{ e.preventDefault(); $('helpModal').classList.add('open'); };
+$('btnHelpClose').onclick=()=>$('helpModal').classList.remove('open');
+$('helpModal').addEventListener('click',e=>{ if(e.target.id==='helpModal')$('helpModal').classList.remove('open'); });
 $('btnNew').onclick=()=>{ if(confirm('Start a new project? Unsaved work is lost.')){ proj=newProject(); activeId=null; syncProjInputs(); renderAll(); } };
 $('btnSaveProj').onclick=()=>{ downloadBlob(new Blob([JSON.stringify(proj,null,2)],{type:'application/json'}), proj.modName+'.forge.json'); };
 $('btnLoadProj').onclick=()=>$('projInput').click();

@@ -25,16 +25,22 @@ No Workbench, no hand-editing configs. Just a photo edit and a few clicks.
   armor, weight, item size, visibility, and **durability** presets.
 - **Advanced / "Special" items** — custom `.rvmat` materials (glow/emissive),
   attachments, hidden selections, and full `DamageSystem` damage tiers.
+- **Full modded-clothing configs** — author or import complete custom items
+  (custom `model` + ClothingTypes, inventory/itemInfo wiring, **proxy/attachment
+  slots**, `GlobalArmor`, repair, `ContinuousActions`, custom `healthLevels`),
+  not just retextures. See [Modded clothing & proxies](#modded-clothing--proxies).
 - **Placeable crates & containers** with custom cargo.
 - **Built-in paint editor** — an MS-Paint-style editor right inside the tool:
   load the vanilla UV layout as your canvas and paint it live (brush, eraser,
   fill bucket, fill-all, line/rect/ellipse, eyedropper, **horizontal/vertical
-  symmetry**, undo/redo, zoom/pan, color swatches, opacity), then apply it
-  straight to the item. No external editor needed.
+  symmetry**, undo/redo, zoom/pan, color swatches, opacity). **Copy / Paste /
+  Export PNG** lets you reuse a pattern across a whole set (e.g. a camo
+  jacket+pants+vest). Then apply it straight to the item — no external editor.
 - **Paint-over UV templates** — or download the real vanilla UV layout to paint
   in Photoshop/GIMP and re-import.
 - **`types.xml` generator** so your items actually spawn in the central economy.
 - **Import an existing `config.cpp`** to edit and extend a mod you already have.
+- **In-app Help** (`? Help`) explaining the workflow and what the tool can/can't do.
 - **Autosave** (nothing is lost on reload) and **live validation**.
 - **One-click build** — exports the mod folder + a `build.ps1` that converts
   PNG→PAA and packs (optionally signs) the PBO using your DayZ Tools install.
@@ -58,8 +64,8 @@ The built-in `types.xml` generator so your items spawn in the central economy:
 ## Quick start
 
 ```
-git clone https://github.com/<you>/kitbash.git
-cd kitbash
+git clone https://github.com/meccmax/dayz-kitbash.git
+cd dayz-kitbash
 ```
 
 Then either:
@@ -102,6 +108,38 @@ the app reads. Re-run after a game update. Use `-Size 1024` for smaller files.
    `@<ModName>/addons`. Enable signing in the Project tab if you want a `.bikey`.
 4. (Optional) Merge the generated `types.xml` into your mission so the items
    spawn as loot.
+
+## Modded clothing & proxies
+
+Kitbash is a **config + texture** tool. It generates `config.cpp`, `types.xml`,
+and organises your textures — it does **not** create 3D models. That distinction
+matters most for proxies.
+
+A "proxy" (a holster, sheath, NVG mount, grenade slot…) has two layers:
+
+| Layer | What it is | Kitbash? |
+|---|---|---|
+| **Config** | the `attachments[]` slots an item exposes | ✅ **Yes** — *Advanced → Attachments / proxy slots*, and the importer reads them |
+| **Model** | the proxy *point* baked into the item's `.p3d`, made in Object Builder | ❌ **No** — that's a modeling step |
+
+So in practice:
+
+- **Reskinning / restatting an item that already has proxies** (a vanilla base, or
+  a modded base you inherit from): **fully supported** — the slots come along, or
+  you set them in the Attachments field.
+- **Authoring a full custom-model item** (your mod ships its own `.p3d`): use
+  **Advanced → Full modded-clothing config**. Set the `model` path, ClothingTypes,
+  inventory slot, proxy/attachment slots, `GlobalArmor`, repair, `ContinuousActions`,
+  custom `healthLevels` (via a damage-rvmat root), and Kitbash writes the whole
+  config **around a model you supply**. You bring the `.p3d`; Kitbash does the config.
+- **Adding a brand-new proxy point to a model that lacks one**: not possible here —
+  that requires the model in Object Builder.
+
+**Import** an existing mod's `config.cpp` (e.g. a custom-clothing mod) and Kitbash
+round-trips all of the above so you can edit and re-export it. (Textures and
+`.rvmat` files live outside the config, so re-attach those before exporting.)
+
+There's an in-app **`? Help`** button that summarises all of this.
 
 ## Security
 
