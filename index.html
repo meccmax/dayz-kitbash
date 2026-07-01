@@ -81,7 +81,8 @@
   .pm-body{flex:1;display:flex;min-height:0}
   .pm-side{width:190px;border-right:1px solid var(--line);background:var(--panel);padding:12px;overflow:auto}
   .pm-stage{flex:1;position:relative;overflow:hidden;background:#141110}
-  #pmCanvas{position:absolute;inset:0;cursor:crosshair;touch-action:none}
+  /* override the global canvas rule (width:100%;max-width:280px) — the paint canvas must fill the stage */
+  #pmCanvas{position:absolute;inset:0;width:auto;height:auto;max-width:none;margin:0;border:0;border-radius:0;background:transparent;image-rendering:auto;cursor:crosshair;touch-action:none}
   .pm-swatch{width:22px;height:22px;border-radius:4px;border:1px solid #0006;cursor:pointer}
   .pm-swatch.active{outline:2px solid var(--accent2);outline-offset:1px}
   .pm-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
