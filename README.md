@@ -109,6 +109,11 @@ the app reads. Re-run after a game update. Use `-Size 1024` for smaller files.
 4. (Optional) Merge the generated `types.xml` into your mission so the items
    spawn as loot.
 
+**Custom models / assets:** if your mod ships its own `.p3d`/`.rvmat` files, set a
+**Custom assets folder** in the Project tab (or run `./build.ps1 -AssetsPath "…"`).
+`build.ps1` copies that folder into the mod before packing — so a model-included
+mod builds in one shot. It skips `config.cpp`/`CfgVehicles.cpp` (Kitbash owns those).
+
 ## Modded clothing & proxies
 
 Kitbash is a **config + texture** tool. It generates `config.cpp`, `types.xml`,
@@ -132,6 +137,8 @@ So in practice:
   inventory slot, proxy/attachment slots, `GlobalArmor`, repair, `ContinuousActions`,
   custom `healthLevels` (via a damage-rvmat root), and Kitbash writes the whole
   config **around a model you supply**. You bring the `.p3d`; Kitbash does the config.
+  Point `build.ps1` at your assets folder (Project tab → *Custom assets folder*, or
+  `-AssetsPath`) and it packs the models/rvmats into the PBO in one build.
 - **Adding a brand-new proxy point to a model that lacks one**: not possible here —
   that requires the model in Object Builder.
 
