@@ -279,7 +279,9 @@
           <div class="field">
             <label class="lbl">Attachments / proxy slots (one per line)</label>
             <textarea id="fAtt" rows="3" spellcheck="false" placeholder="e.g. Pistol&#10;Belt_Back&#10;Shoulder"></textarea>
-            <div class="hint">The proxy/attachment points the item exposes (must already exist on the base model).</div>
+            <div class="hint" style="border:1px solid var(--accent);border-radius:6px;padding:8px 10px;margin-top:2px;background:#2a1f12">
+              ⚠ These slots must <b>already exist as proxy points on the base model (<code>.p3d</code>)</b>. Typing a name here only writes the config line — it <b>does not create</b> the attachment point. A slot with no matching point in the model does nothing in-game. <a class="link" href="#" id="helpFromAtt">Why? →</a>
+            </div>
           </div>
           <div class="chk"><input type="checkbox" id="fModdedOn"><label for="fModdedOn" class="small">Full modded-clothing config (custom model, wiring, armor, repair…)</label></div>
           <div id="moddedFields" style="display:none">
@@ -1632,6 +1634,7 @@ $('eInclude').addEventListener('change',()=>{ ensureEcon().include=$('eInclude')
 $('eSkipCrates').addEventListener('change',()=>{ ensureEcon().skipCrates=$('eSkipCrates').checked; renderOutputs(); });
 $('btnHelp').onclick=()=>$('helpModal').classList.add('open');
 $('helpFromModded').onclick=e=>{ e.preventDefault(); $('helpModal').classList.add('open'); };
+$('helpFromAtt').onclick=e=>{ e.preventDefault(); $('helpModal').classList.add('open'); };
 $('btnHelpClose').onclick=()=>$('helpModal').classList.remove('open');
 $('helpModal').addEventListener('click',e=>{ if(e.target.id==='helpModal')$('helpModal').classList.remove('open'); });
 $('btnNew').onclick=()=>{ if(confirm('Start a new project? Unsaved work is lost.')){ proj=newProject(); activeId=null; syncProjInputs(); renderAll(); } };
