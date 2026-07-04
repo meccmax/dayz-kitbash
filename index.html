@@ -164,10 +164,17 @@
             </div>
           </div>
           <div class="field">
+            <label class="lbl">hiddenSelections — named (comma, optional)</label>
+            <input id="fCustomSel" spellcheck="false" placeholder="e.g. camo, personality">
+            <div class="hint">The selection names the base's model uses (check the source mod's config). Overrides "texture slots" when set.</div>
+          </div>
+          <div class="field">
             <label class="lbl">Required addon(s) — comma separated</label>
             <input id="fReqAddons" spellcheck="false" placeholder="e.g. TheMod_Data, TheMod_Characters">
             <div class="hint">The parent mod's addon name(s), added to requiredAddons so the game loads the base.</div>
           </div>
+          <button class="ghost" id="btnImportBases" style="width:100%;margin-bottom:8px">⇪ Import bases from a mod's config.cpp…</button>
+          <div class="hint" style="margin-bottom:8px">Reads another mod's config and adds its clothing classes as selectable bases (with their selection names + required addon) — then retexture them like vanilla items.</div>
           <div style="display:flex;gap:16px">
             <label class="chk small" style="margin:0"><input type="checkbox" id="fCustomCargo"> has cargo</label>
             <label class="chk small" style="margin:0"><input type="checkbox" id="fCustomArmor"> has armor (melee/firearm)</label>
@@ -266,6 +273,13 @@
       </div>
 
       <div class="seg">
+        <h3>Variants (camo / color pack)</h3>
+        <div class="hint" style="margin-bottom:8px">Define the item once, add one texture per variant — Kitbash generates a hidden <code>_ColorBase</code> parent plus a spawnable child per variant (sota-style pack). Loot entries are per variant.</div>
+        <div id="variantList"></div>
+        <button class="ghost" id="btnAddVariant" style="width:100%">+ Add variant</button>
+      </div>
+
+      <div class="seg">
         <h3>Advanced / Special</h3>
         <div class="chk"><input type="checkbox" id="fAdvItem"><label for="fAdvItem" class="small">Enable advanced mode (materials, attachments, full damage tiers)</label></div>
         <div id="advItemFields" style="display:none">
@@ -279,8 +293,11 @@
           <div class="field">
             <label class="lbl">Attachments / proxy slots (one per line)</label>
             <textarea id="fAtt" rows="3" spellcheck="false" placeholder="e.g. Pistol&#10;Belt_Back&#10;Shoulder"></textarea>
+            <div id="attChips" style="display:flex;flex-wrap:wrap;gap:4px;margin:6px 0"></div>
             <div class="hint" style="border:1px solid var(--accent);border-radius:6px;padding:8px 10px;margin-top:2px;background:#2a1f12">
-              ⚠ These slots must <b>already exist as proxy points on the base model (<code>.p3d</code>)</b>. Typing a name here only writes the config line — it <b>does not create</b> the attachment point. A slot with no matching point in the model does nothing in-game. <a class="link" href="#" id="helpFromAtt">Why? →</a>
+              ⚠ Slots added here <b>work in the inventory</b> on any item — but the attached item only
+              <b>renders on your character</b> if the base model (<code>.p3d</code>) has a matching proxy point.
+              No proxy in the model = functional but invisible. <a class="link" href="#" id="helpFromAtt">Why? →</a>
             </div>
           </div>
           <div class="chk"><input type="checkbox" id="fModdedOn"><label for="fModdedOn" class="small">Full modded-clothing config (custom model, wiring, armor, repair…)</label></div>
@@ -314,11 +331,16 @@
               <input id="fDmgRoot" spellcheck="false" placeholder="\MyMod\assets\...\Pants">
               <div class="hint">Kitbash appends <code>.rvmat</code> / <code>_damage.rvmat</code> / <code>_destruct.rvmat</code> across the 5 tiers.</div>
             </div>
-            <div class="chk"><input type="checkbox" id="fGArmor"><label for="fGArmor" class="small">Melee/Infected armor (GlobalArmor)</label></div>
-            <div class="row3" id="gArmorRow" style="display:none">
-              <div class="field"><label class="lbl">Health dmg</label><input id="fGAHealth" type="number" step="0.05"></div>
-              <div class="field"><label class="lbl">Blood dmg</label><input id="fGABlood" type="number" step="0.05"></div>
-              <div class="field"><label class="lbl">Shock dmg</label><input id="fGAShock" type="number" step="0.05"></div>
+            <div class="row2">
+              <div class="field"><label class="lbl">RefTexsMats — vanilla rvmats replaced (comma)</label><input id="fRefMats" spellcheck="false" placeholder="dz\characters\vests\data\ballisticvest"></div>
+              <div class="field"><label class="lbl">transferToAttachmentsCoef</label><input id="fTransferCoef" type="number" step="0.05" min="0" placeholder="e.g. 0.5"></div>
+            </div>
+            <div class="chk"><input type="checkbox" id="fGArmor"><label for="fGArmor" class="small">GlobalArmor — damage passthrough per hit type (lower = more protection)</label></div>
+            <div id="gArmorRow" style="display:none">
+              <div style="display:grid;grid-template-columns:20px 92px 1fr 1fr 1fr;gap:6px;align-items:center;font-size:11px;color:var(--muted)">
+                <span></span><span></span><span>Health</span><span>Blood</span><span>Shock</span>
+              </div>
+              <div id="gArmorGrid"></div>
             </div>
           </div>
         </div>
@@ -489,8 +511,21 @@
         authored in Object Builder. <b>Kitbash can't create this.</b></li>
       </ul>
       <div class="note"><b>So:</b> if a base model already has the proxy points (a vanilla vest's grenade slots, a
-      modded item you inherit from), Kitbash wires the slots and you're done. Adding a <b>brand-new</b> proxy
-      point to a model needs that model in Object Builder — Kitbash only writes the config around it.</div>
+      modded item you inherit from), Kitbash wires the slots and you're done — attached items show on your character.
+      You <b>can</b> also add slots to any item purely in config: they <b>work in the inventory</b> (the slot appears
+      and holds the item), but without a matching proxy in the model the attached item is <b>invisible on the
+      character</b>. Making it visible needs the proxy added to the model in Object Builder.</div>
+
+      <h3>Variant packs (camo sets)</h3>
+      <p>Add <b>Variants</b> to an item to ship a whole color/camo pack: Kitbash defines the item once as a hidden
+      <code>_ColorBase</code> parent (stats, materials, damage) and generates a spawnable child per variant — each
+      with its own texture, optional visibility, and its own <code>types.xml</code> loot entry.</p>
+
+      <h3>Retexturing modded gear</h3>
+      <p>Use <b>Import bases from a mod's config.cpp</b> (in the custom-base panel): Kitbash reads the other mod's
+      classes, their <code>hiddenSelections</code> names, and the required addon, and adds them to the base dropdown
+      under <i>Imported (modded)</i>. Then retexture them exactly like vanilla items. (If the mod's config is a
+      binarized <code>config.bin</code>, convert it with DayZ Tools' CfgConvert first.)</p>
 
       <h3>Modded / custom-model clothing</h3>
       <p>If your mod ships its own model (its own <code>.p3d</code>), use <b>Advanced → Full modded-clothing config</b>:
@@ -578,6 +613,7 @@
 <input type="file" id="fileInput" accept="image/*" style="display:none">
 <input type="file" id="rvmatInput" accept=".rvmat" style="display:none">
 <input type="file" id="cppInput" accept=".cpp,.txt" style="display:none">
+<input type="file" id="basesInput" accept=".cpp,.txt" style="display:none">
 <input type="file" id="projInput" accept="application/json,.json" style="display:none">
 
 <script>
@@ -848,8 +884,10 @@ const FOLDER_BUCKET = {shirts:'tops',jackets:'tops',armbands:'tops',tops:'tops',
 function meta(it){
   const b=BASE_BY_CLS[it.base];
   if(b) return b;
+  const selNames=String(it.cSel||'').split(',').map(x=>x.trim()).filter(Boolean);
   return {cls:it.base,label:it.base||'(set base class)',cat:'Custom',folder:it.folder||'items',
-    cargo:(it.cargoW!=null?[it.cargoW,it.cargoH]:null),heat:it.heat,armor:!!it.cArmor,slots:it.cSlots||3,custom:true};
+    cargo:(it.cargoW!=null?[it.cargoW,it.cargoH]:null),heat:it.heat,armor:!!it.cArmor,
+    slots:selNames.length||it.cSlots||3,selNames,custom:true};
 }
 function bucketFor(it){ const m=meta(it); return FOLDER_BUCKET[m.folder]||null; }
 const _tplCache={};
@@ -884,14 +922,17 @@ function newProject(){
     econ:{ nominal:5, min:2, lifetime:10800, restock:0, cost:100, category:'auto',
            usages:'Military, Town', tiers:'', include:false, skipCrates:true,
            flags:{count_in_cargo:0,count_in_hoarder:0,count_in_map:1,count_in_player:0,crafted:0,deloot:0} },
+    baseLib:[],   // imported modded bases: [{cls, sel[], addon, from}]
     items:[]
   };
 }
 function uid(){ return 'i'+Math.random().toString(36).slice(2,9); }
 
 function defaultItem(baseCls){
-  const isCustom = baseCls==='__custom__';
-  const b = isCustom ? {cls:'',label:'Custom Item',folder:'items',cargo:null,heat:0.7,slots:3} : (BASE_BY_CLS[baseCls] || BASES[0]);
+  const lib = String(baseCls||'').startsWith('__lib__') ? (proj.baseLib||[]).find(x=>'__lib__'+x.cls===baseCls) : null;
+  const isCustom = baseCls==='__custom__' || !!lib;
+  const b = lib ? {cls:lib.cls,label:lib.cls,folder:guessFolder(lib.cls),cargo:null,heat:null,slots:(lib.sel||[]).length||3}
+    : isCustom ? {cls:'',label:'Custom Item',folder:'items',cargo:null,heat:0.7,slots:3} : (BASE_BY_CLS[baseCls] || BASES[0]);
   const it = {
     id:uid(), base:b.cls,
     cls:nextClassName(isCustom?{cls:'custom_item'}:b),
@@ -910,14 +951,20 @@ function defaultItem(baseCls){
     folder:null,             // data subfolder for custom base
     reqAddons:[],            // extra requiredAddons for custom base's parent mod
     cArmor:false, cSlots:3,  // custom base: has armor? texture slot count
+    cSel:'',                 // custom base: named hiddenSelections (comma) — overrides cSlots
+    variants:[],             // variant pack: [{id,suffix,tex,vis}] → ColorBase parent + child per variant
     // full modded-clothing fields (all optional; omitted when blank)
     modded:false, model:'', modelM:'', modelF:'', invSlot:'', itemInfo:'', simulation:'',
     ragQty:null, varWetMax:null, quickBar:null, repairKits:'', repairCosts:'', contActions:'',
     dmgRoot:'',              // rvmat root for full healthLevels (modded base, no _suffix/.rvmat)
+    refMats:'',              // RefTexsMats[] — vanilla rvmats being replaced (comma)
+    transferCoef:null,       // transferToAttachmentsCoef
     garmor:false, garmorHealth:0.9, garmorBlood:0.9, garmorShock:1.0,
+    garmorEx:null,           // per-class armor {Projectile|Melee|Infected|FragGrenade:{h,b,s}|null}
     res:2048, tex:null       // tex = dataURL (PNG)
   };
-  if(isCustom){ it.customBase=true; it.folder='items'; }
+  if(isCustom){ it.customBase=true; it.folder=lib?guessFolder(lib.cls):'items';
+    if(lib){ it.cSel=(lib.sel||[]).join(', '); it.cSlots=(lib.sel||[]).length||3; it.reqAddons=lib.addon?[lib.addon]:[]; } }
   return it;
 }
 function nextClassName(b){
@@ -932,9 +979,10 @@ function nextClassName(b){
 const $ = id=>document.getElementById(id);
 const itemList=$('itemList'), editor=$('editor'), editorEmpty=$('editorEmpty');
 
-/* base dropdown grouped by category */
-(function buildBaseSelect(){
-  const sel=$('fBase'); const cats=[...new Set(BASES.map(b=>b.cat))];
+/* base dropdown grouped by category (+ imported mod bases) — rebuildable */
+function buildBaseSelect(){
+  const sel=$('fBase'); const keep=sel.value; sel.innerHTML='';
+  const cats=[...new Set(BASES.map(b=>b.cat))];
   cats.forEach(c=>{
     const og=document.createElement('optgroup'); og.label=c;
     BASES.filter(b=>b.cat===c).forEach(b=>{
@@ -942,10 +990,58 @@ const itemList=$('itemList'), editor=$('editor'), editorEmpty=$('editorEmpty');
     });
     sel.appendChild(og);
   });
+  const lib=proj.baseLib||[];
+  if(lib.length){
+    const og=document.createElement('optgroup'); og.label='Imported (modded)';
+    lib.forEach(e=>{ const o=document.createElement('option'); o.value='__lib__'+e.cls; o.textContent=e.cls+(e.from?(' — '+e.from):''); og.appendChild(o); });
+    sel.appendChild(og);
+  }
   const og=document.createElement('optgroup'); og.label='Modded';
   const o=document.createElement('option'); o.value='__custom__'; o.textContent='＋ Custom / modded base…'; og.appendChild(o);
   sel.appendChild(og);
-})();
+  if(keep && [...sel.options].some(x=>x.value===keep)) sel.value=keep;
+}
+buildBaseSelect();
+
+/* guess the data subfolder for an imported/modded class name */
+function guessFolder(cls){ const n=String(cls).toLowerCase();
+  if(/vest|carrier|pouch/.test(n))return 'vests';
+  if(/pant|jean|skirt|breech/.test(n))return 'pants';
+  if(/helmet|hat|cap|boonie|beanie|hood|beret/.test(n))return 'headgear';
+  if(/mask|balaclava|shemag|bandana/.test(n))return 'masks';
+  if(/glove/.test(n))return 'gloves';
+  if(/boot|shoe|sneaker|welly/.test(n))return 'shoes';
+  if(/bag|backpack|pack/.test(n))return 'backpacks';
+  if(/glass|goggle/.test(n))return 'glasses';
+  if(/belt|sheath|holster/.test(n))return 'belts';
+  if(/shirt|jacket|top|coat|hoodie|sweater|flannel|uniform/.test(n))return 'tops';
+  return 'items'; }
+
+/* parse another mod's config.cpp into base-library entries */
+function parseBaseLib(srcRaw){
+  const src=stripComments(srcRaw); const found={}; let addon=null;
+  const mp=src.match(/class\s+CfgPatches\s*\{\s*class\s+([A-Za-z0-9_]+)/i); if(mp)addon=mp[1];
+  const body=classBody(src,'[Cc]fgVehicles'); if(!body) return {addon,entries:[]};
+  const SKIP=/^(DamageSystem|GlobalHealth|GlobalArmor|Health|Blood|Shock|Melee|Infected|Projectile|FragGrenade|Cargo|ClothingTypes|AnimEvents|SoundWeapon|pickUpItem|drop|Clothing|Clothing_Base|Inventory_Base|Container_Base|WorldContainer_Base)$/;
+  // forward declarations: class X;
+  [...body.matchAll(/class\s+([A-Za-z0-9_]+)\s*;/g)].forEach(m=>{ if(!SKIP.test(m[1])&&!BASE_BY_CLS[m[1]]) found[m[1]]={cls:m[1],sel:[],parent:null}; });
+  // defined classes: class X : Y { … }
+  const re=/class\s+([A-Za-z0-9_]+)\s*:\s*([A-Za-z0-9_]+)\s*\{/g; let m;
+  while((m=re.exec(body))){
+    const open=re.lastIndex-1, close=matchBrace(body,open); if(close<0)break;
+    const inner=body.slice(open+1,close); re.lastIndex=close+1;
+    if(SKIP.test(m[1])||BASE_BY_CLS[m[1]])continue;
+    const hs=inner.match(/hiddenSelections\[\]\s*=\s*\{([\s\S]*?)\}/i);
+    const sel=hs?[...hs[1].matchAll(/'([^']+)'|"([^"]+)"/g)].map(x=>x[1]||x[2]):[];
+    found[m[1]]={cls:m[1],sel,parent:m[2]};
+  }
+  // propagate child selections up to parents that lack them
+  Object.values(found).forEach(e=>{ if(e.parent&&found[e.parent]&&!found[e.parent].sel.length&&e.sel.length) found[e.parent].sel=e.sel.slice(); });
+  // keep only real bases: forward-declared, *Base-named, or used as a parent by another class
+  const parents=new Set(Object.values(found).map(e=>e.parent).filter(Boolean));
+  const entries=Object.values(found).filter(e=> e.parent===null || /base$/i.test(e.cls) || parents.has(e.cls));
+  return {addon,entries};
+}
 
 /* ----------------------------- rendering ----------------------------- */
 function renderList(){
@@ -955,11 +1051,15 @@ function renderList(){
     const b=meta(it);
     const row=document.createElement('div');
     row.className='item-row'+(it.id===activeId?' active':'');
-    const hasTex = it.tex && /^data:image\//.test(it.tex);   // only trust canvas-generated data URLs
+    const nVars=(it.variants||[]).length;
+    const texSrc=nVars? (it.variants.find(v=>v.tex)||{}).tex : it.tex;
+    const hasTex = texSrc && /^data:image\//.test(texSrc);   // only trust canvas-generated data URLs
+    const texLbl = nVars? `<span style="color:var(--accent2)">${nVars} variant${nVars>1?'s':''}</span>`
+                        : (hasTex?'<span style="color:var(--good)">tex ✓</span>':'<span style="color:var(--muted)">no tex</span>');
     row.innerHTML=`<div class="thumb"></div>
       <div class="meta"><div class="nm">${esc(it.display||it.cls)}</div>
-      <div class="bs">${esc(b.label)} · ${hasTex?'<span style="color:var(--good)">tex ✓</span>':'<span style="color:var(--muted)">no tex</span>'}</div></div>`;
-    if(hasTex) row.firstElementChild.style.backgroundImage='url("'+it.tex+'")';  // set via DOM property, not HTML
+      <div class="bs">${esc(b.label)} · ${texLbl}</div></div>`;
+    if(hasTex) row.firstElementChild.style.backgroundImage='url("'+texSrc+'")';  // set via DOM property, not HTML
     row.onclick=()=>{ activeId=it.id; renderAll(); };
     itemList.appendChild(row);
   });
@@ -972,7 +1072,9 @@ function renderEditor(){
   if(!it){ editor.style.display='none'; editorEmpty.style.display='block'; return; }
   editor.style.display='block'; editorEmpty.style.display='none';
   const b=meta(it);
-  $('fBase').value = it.customBase ? '__custom__' : it.base;
+  $('fBase').value = it.customBase
+    ? ((proj.baseLib||[]).some(x=>x.cls===it.base) ? '__lib__'+it.base : '__custom__')
+    : it.base;
   $('baseHint').textContent = `${b.cat||''} → data/${b.folder||'items'}/  ·  base class: ${it.base||'(none set)'}`;
   // custom/modded base fields
   $('customBaseFields').style.display = it.customBase?'block':'none';
@@ -980,6 +1082,7 @@ function renderEditor(){
     $('fCustomBase').value=it.base||'';
     $('fCustomFolder').value=it.folder||'items';
     $('fCustomSlots').value=it.cSlots||3;
+    $('fCustomSel').value=it.cSel||'';
     $('fReqAddons').value=(it.reqAddons||[]).join(', ');
     $('fCustomCargo').checked=it.cargoW!=null;
     $('fCustomArmor').checked=!!it.cArmor;
@@ -1003,6 +1106,7 @@ function renderEditor(){
   // advanced
   $('fWeight').value=it.weight??''; $('fSizeW').value=it.sizeW??''; $('fSizeH').value=it.sizeH??''; $('fVis').value=it.vis??'';
   $('fRes').value=it.res;
+  renderVariants(it);
   renderTplPicker(it);
   // advanced
   const prof=ADV_PROFILES[it.base]||{};
@@ -1022,10 +1126,57 @@ function renderEditor(){
   $('fInvSlot').value=it.invSlot||''; $('fItemInfo').value=it.itemInfo||''; $('fSim').value=it.simulation||'';
   $('fRagQty').value=it.ragQty??''; $('fVarWet').value=it.varWetMax??''; $('fQuickBar').value=it.quickBar??'';
   $('fRepKits').value=it.repairKits||''; $('fRepCosts').value=it.repairCosts||''; $('fContAct').value=it.contActions||''; $('fDmgRoot').value=it.dmgRoot||'';
-  $('fGArmor').checked=!!it.garmor; $('gArmorRow').style.display=it.garmor?'grid':'none';
-  $('fGAHealth').value=it.garmorHealth??0.9; $('fGABlood').value=it.garmorBlood??0.9; $('fGAShock').value=it.garmorShock??1.0;
+  $('fRefMats').value=it.refMats||''; $('fTransferCoef').value=it.transferCoef??'';
+  $('fGArmor').checked=!!it.garmor; $('gArmorRow').style.display=it.garmor?'block':'none';
+  renderGArmor(it);
   drawTex(it);
   $('texInfo').textContent = it.tex ? `Texture loaded · exports as ${it.cls}.png (${it.res}×${it.res})` : 'No texture yet. Paint a PNG in your editor, then drop it here.';
+}
+
+let texTarget=null;   // variant id receiving the next image load (null = the item itself)
+function renderGArmor(it){
+  const grid=$('gArmorGrid'); grid.innerHTML='';
+  if(!it.garmor) return;
+  if(!it.garmorEx) it.garmorEx=garmorOf(it);   // migrate legacy Melee/Infected values on first open
+  GARMOR_CLASSES.forEach(cn=>{
+    const v=it.garmorEx[cn];
+    const row=document.createElement('div');
+    row.style.cssText='display:grid;grid-template-columns:20px 92px 1fr 1fr 1fr;gap:6px;align-items:center;margin-bottom:4px';
+    row.innerHTML=`<input type="checkbox" ${v?'checked':''} style="width:auto">
+      <span class="small">${cn}</span>
+      <input data-k="h" type="number" step="0.05" min="0" value="${v?v.h:''}" ${v?'':'disabled'}>
+      <input data-k="b" type="number" step="0.05" min="0" value="${v?v.b:''}" ${v?'':'disabled'}>
+      <input data-k="s" type="number" step="0.05" min="0" value="${v?v.s:''}" ${v?'':'disabled'}>`;
+    row.querySelector('input[type=checkbox]').addEventListener('change',e=>{
+      it.garmorEx[cn]=e.target.checked?{h:0.9,b:0.9,s:1.0}:null; renderGArmor(it); renderOutputs(); });
+    row.querySelectorAll('input[data-k]').forEach(inp=>inp.addEventListener('input',()=>{
+      if(!it.garmorEx[cn])return; it.garmorEx[cn][inp.dataset.k]=parseFloat(inp.value)||0; renderOutputs(); }));
+    grid.appendChild(row);
+  });
+}
+function renderVariants(it){
+  const box=$('variantList'); box.innerHTML='';
+  if(!it.variants) it.variants=[];
+  it.variants.forEach(v=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:6px';
+    const hasTex=v.tex&&/^data:image\//.test(v.tex);
+    row.innerHTML=
+      `<div style="width:34px;height:34px;border-radius:4px;border:1px solid var(--line);background:#000 center/cover;flex:0 0 auto"></div>
+       <input data-k="suffix" value="${esc(v.suffix||'')}" placeholder="Suffix e.g. Black" spellcheck="false" style="flex:1">
+       <input data-k="vis" type="number" step="0.05" min="0" max="1" value="${v.vis??''}" placeholder="vis" title="visibilityModifier (optional)" style="width:62px">
+       <button class="ghost" data-a="paint" title="Paint this variant">🖌</button>
+       <button class="ghost" data-a="img" title="Load an image file">📁</button>
+       <button class="ghost danger" data-a="del" title="Remove variant">✕</button>`;
+    if(hasTex) row.firstElementChild.style.backgroundImage='url("'+v.tex+'")';
+    row.querySelector('[data-k="suffix"]').addEventListener('input',e=>{ v.suffix=e.target.value; renderOutputs(); });
+    row.querySelector('[data-k="vis"]').addEventListener('input',e=>{ v.vis=e.target.value===''?null:parseFloat(e.target.value); renderOutputs(); });
+    row.querySelector('[data-a="paint"]').onclick=()=>Paint.open(it,v);
+    row.querySelector('[data-a="img"]').onclick=()=>{ texTarget=v.id; $('fileInput').click(); };
+    row.querySelector('[data-a="del"]').onclick=()=>{ it.variants=it.variants.filter(x=>x.id!==v.id); renderEditor(); renderOutputs(); };
+    box.appendChild(row);
+  });
+  if(!it.variants.length) box.innerHTML='<div class="hint" style="margin-bottom:6px">No variants — this item exports as a single class with the texture above.</div>';
 }
 
 function renderTplPicker(it){
@@ -1068,7 +1219,14 @@ function validate(){
     else seen[it.cls]=true;
     if(it.customBase&&(!it.base||!it.base.trim())) warns.push({sev:'err',msg:`${label}: modded base class not set.`});
     if(it.customBase&&(!it.reqAddons||!it.reqAddons.length)) warns.push({sev:'warn',msg:`${label}: no required addon for the modded base — the game may fail to load its parent.`});
-    if(!it.tex&&meta(it).kind!=='crate') noTex.push(it.cls||label);
+    if(it.variants&&it.variants.length&&meta(it).kind!=='crate'){
+      const seenSfx={};
+      it.variants.forEach(v=>{ const sf=cleanSuffix(v);
+        if(seenSfx[sf]) warns.push({sev:'err',msg:`${label}: duplicate variant suffix <code>${esc(sf)}</code>.`});
+        seenSfx[sf]=true;
+        if(!v.tex) noTex.push((it.cls||label)+'_'+sf); });
+    }
+    else if(!it.tex&&meta(it).kind!=='crate') noTex.push(it.cls||label);
   });
   if(noTex.length===1) warns.push({sev:'warn',msg:`${esc(noTex[0])}: no texture attached.`});
   else if(noTex.length>1) warns.push({sev:'warn',msg:`${noTex.length} items have no texture attached (re-attach before export): <code>${esc(noTex.slice(0,6).join(', '))}${noTex.length>6?', …':''}</code>`});
@@ -1120,7 +1278,7 @@ function classBody(s,name){ const re=new RegExp('class\\s+'+name+'\\s*\\{'); con
 function parseConfig(srcRaw){
   const src=stripComments(srcRaw); const items=[]; let modName=null;
   const mp=src.match(/class\s+CfgPatches\s*\{\s*class\s+([A-Za-z0-9_]+)/); if(mp)modName=mp[1];
-  const body=classBody(src,'CfgVehicles'); if(!body) return {modName,items};
+  const body=classBody(src,'[Cc]fgVehicles'); if(!body) return {modName,items};
   const re=/class\s+([A-Za-z0-9_]+)\s*:\s*([A-Za-z0-9_]+)\s*\{/g; let m;
   while((m=re.exec(body))){
     const open=re.lastIndex-1, close=matchBrace(body,open);
@@ -1132,15 +1290,15 @@ function parseConfig(srcRaw){
 }
 function parseItem(name,base,inner){
   const vanilla=BASE_BY_CLS[base];
-  const texPaths=[...inner.matchAll(/"([^"]*\\data\\[^"]+\.paa)"/gi)];
+  const texPaths=[...inner.matchAll(/["']([^"']*\\data\\[^"']+\.paa)["']/gi)];
   let folder=null, slots=texPaths.length||3;
   if(texPaths.length){ const mm=texPaths[0][1].match(/\\data\\([^\\]+)\\/i); if(mm)folder=mm[1]; }
   const it = vanilla ? defaultItem(base) : defaultItem('__custom__');
   it.id=uid(); it.cls=name; it.base=base; it.tpl=null; it.tex=null; it.rvmat=null;
   if(!vanilla){ it.customBase=true; it.folder=folder||'items'; it.cSlots=slots; it.reqAddons=[]; }
   const g=re=>{ const x=inner.match(re); return x?x[1]:null; };
-  it.display=g(/displayName\s*=\s*"([^"]*)"/)||it.cls;
-  it.desc=g(/descriptionShort\s*=\s*"([^"]*)"/)||'';
+  it.display=g(/displayName\s*=\s*["']([^"']*)["']/i)||it.cls;
+  it.desc=g(/descriptionShort\s*=\s*["']([^"']*)["']/i)||'';
   const cargo=inner.match(/itemsCargoSize\[\]\s*=\s*\{\s*(\d+)\s*,\s*(\d+)\s*\}/);
   if(cargo){ it.cargoW=+cargo[1]; it.cargoH=+cargo[2]; } else { it.cargoW=null; it.cargoH=null; }
   const heat=g(/heatIsolation\s*=\s*([\d.]+)/); it.heat = heat!=null?+heat:(vanilla?it.heat:null);
@@ -1152,28 +1310,43 @@ function parseItem(name,base,inner){
   const hp=g(/hitpoints\s*=\s*(\d+)/); if(hp!=null)it.hp=+hp;
   if(/hiddenSelectionsMaterials/i.test(inner)) it.adv=true;
   if(/healthLevels/i.test(inner)){ it.adv=true; it.fullHealth=true;
-    const hl=inner.match(/healthLevels\[\]\s*=\s*\{[\s\S]*?\{\s*1\s*,\s*\{\s*"([^"]+?)(_damage|_destruct)?\.rvmat"/i);
-    if(hl && !BASE_BY_CLS[base]){ it.dmgRoot=hl[1]; it.modded=true; } }
+    const hl=inner.match(/healthLevels\[\]\s*=\s*\{[\s\S]*?\{\s*1\s*,\s*\{\s*["']([^"']+?)(_damage|_destruct)?\.rvmat["']/i);
+    // keep the rvmat root when the base is modded OR the rvmats are custom (not vanilla dz\ paths)
+    if(hl && (!BASE_BY_CLS[base] || !/^dz[\\\/]/i.test(hl[1]))){ it.dmgRoot=hl[1]; it.modded=true; } }
+  const QS=/["']([^"']+)["']/g;
   const att=inner.match(/attachments\[\]\s*=\s*\{([\s\S]*?)\}/i);
-  if(att){ const list=[...att[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]); if(list.length){ it.adv=true; it.att=list; } }
+  if(att){ const list=[...att[1].matchAll(QS)].map(x=>x[1]); if(list.length){ it.adv=true; it.att=list; } }
   // full modded-clothing fields
-  const model=g(/\bmodel\s*=\s*"([^"]*)"/); if(model){ it.model=model; it.modded=true; }
+  const model=g(/\bmodel\s*=\s*["']([^"']*)["']/i); if(model){ it.model=model; it.modded=true; }
   const ct=inner.match(/class\s+ClothingTypes\s*\{([\s\S]*?)\}/i);
-  if(ct){ const mm=ct[1].match(/male\s*=\s*"([^"]*)"/i), mf=ct[1].match(/female\s*=\s*"([^"]*)"/i);
+  if(ct){ const mm=ct[1].match(/male\s*=\s*["']([^"']*)["']/i), mf=ct[1].match(/female\s*=\s*["']([^"']*)["']/i);
     if(mm)it.modelM=mm[1]; if(mf)it.modelF=mf[1]; if(mm||mf)it.modded=true; }
-  const inv=inner.match(/inventorySlot\[\]\s*=\s*\{([\s\S]*?)\}/i); if(inv){ it.invSlot=[...inv[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]).join(', '); it.modded=true; }
-  const iinfo=inner.match(/itemInfo\[\]\s*=\s*\{([\s\S]*?)\}/i); if(iinfo){ it.itemInfo=[...iinfo[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]).join(', '); it.modded=true; }
-  const sim=g(/\bsimulation\s*=\s*"([^"]*)"/); if(sim){ it.simulation=sim; it.modded=true; }
+  const inv=inner.match(/inventorySlot\[\]\s*=\s*\{([\s\S]*?)\}/i); if(inv){ it.invSlot=[...inv[1].matchAll(QS)].map(x=>x[1]).join(', '); it.modded=true; }
+  const iinfo=inner.match(/itemInfo\[\]\s*=\s*\{([\s\S]*?)\}/i); if(iinfo){ it.itemInfo=[...iinfo[1].matchAll(QS)].map(x=>x[1]).join(', '); it.modded=true; }
+  const sim=g(/\bsimulation\s*=\s*["']([^"']*)["']/i); if(sim){ it.simulation=sim; it.modded=true; }
+  // named hiddenSelections on custom bases
+  if(!vanilla){ const hsel=inner.match(/hiddenSelections\[\]\s*=\s*\{([\s\S]*?)\}/i);
+    if(hsel){ const names=[...hsel[1].matchAll(QS)].map(x=>x[1]); if(names.length){ it.cSel=names.join(', '); it.cSlots=names.length; } } }
   const rqy=g(/\bragQuantity\s*=\s*(\d+)/); if(rqy!=null){ it.ragQty=+rqy; it.modded=true; }
   const vwm=g(/\bvarWetMax\s*=\s*([\d.]+)/); if(vwm!=null){ it.varWetMax=+vwm; it.modded=true; }
   const qbb=g(/\bquickBarBonus\s*=\s*(\d+)/); if(qbb!=null){ it.quickBar=+qbb; it.modded=true; }
   const rkit=inner.match(/repairableWithKits\[\]\s*=\s*\{([^}]*)\}/i); if(rkit){ it.repairKits=rkit[1].replace(/\s+/g,''); it.modded=true; }
   const rcost=inner.match(/repairCosts\[\]\s*=\s*\{([^}]*)\}/i); if(rcost){ it.repairCosts=rcost[1].replace(/\s+/g,''); it.modded=true; }
-  const cact=inner.match(/Continuo\w*Actions\[\]\s*=\s*\{([\s\S]*?)\}/i); if(cact){ it.contActions=[...cact[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]).join(', '); it.modded=true; }
-  if(/class\s+GlobalArmor/i.test(inner)){ it.garmor=true; it.adv=true; it.modded=true;
-    const m1=inner.match(/class\s+Melee\b[\s\S]*?class\s+Health\s*\{\s*damage\s*=\s*([\d.]+)/i); if(m1)it.garmorHealth=+m1[1];
-    const m2=inner.match(/class\s+Melee\b[\s\S]*?class\s+Blood\s*\{\s*damage\s*=\s*([\d.]+)/i); if(m2)it.garmorBlood=+m2[1];
-    const m3=inner.match(/class\s+Melee\b[\s\S]*?class\s+Shock\s*\{\s*damage\s*=\s*([\d.]+)/i); if(m3)it.garmorShock=+m3[1];
+  const cact=inner.match(/Continuo\w*Actions\[\]\s*=\s*\{([\s\S]*?)\}/i); if(cact){ it.contActions=[...cact[1].matchAll(QS)].map(x=>x[1]).join(', '); it.modded=true; }
+  // health extras
+  const tco=g(/transferToAttachmentsCoef\s*=\s*([\d.]+)/i); if(tco!=null){ it.transferCoef=+tco; it.modded=true; }
+  const rtm=inner.match(/RefTexsMats\[\]\s*=\s*\{([\s\S]*?)\}/i);
+  if(rtm){ it.refMats=[...rtm[1].matchAll(QS)].map(x=>x[1]).join(', '); it.modded=true; }
+  // GlobalArmor — per-class (Projectile/Melee/Infected/FragGrenade), scoped to the armor block
+  const gaM=inner.match(/class\s+GlobalArmor\s*\{/i);
+  if(gaM){ it.garmor=true; it.adv=true; it.modded=true;
+    const open=gaM.index+gaM[0].length-1, close=matchBrace(inner,open);
+    const ab=close>0?inner.slice(open+1,close):inner;
+    it.garmorEx={Projectile:null,Melee:null,Infected:null,FragGrenade:null};
+    GARMOR_CLASSES.forEach(cn=>{
+      const m=ab.match(new RegExp('class\\s+'+cn+'\\b[\\s\\S]*?class\\s+Health\\s*\\{\\s*damage\\s*=\\s*([\\d.]+)[\\s\\S]*?class\\s+Blood\\s*\\{\\s*damage\\s*=\\s*([\\d.]+)[\\s\\S]*?class\\s+Shock\\s*\\{\\s*damage\\s*=\\s*([\\d.]+)','i'));
+      if(m) it.garmorEx[cn]={h:+m[1],b:+m[2],s:+m[3]};
+    });
   }
   return it;
 }
@@ -1193,7 +1366,11 @@ function genTypes(){
   proj.items.forEach(it=>{
     if(!it.cls||!it.cls.trim()) return;
     if(e.skipCrates && meta(it).kind==='crate') return;
-    s+='    <type name="'+it.cls+'">\n';
+    // variant packs: one loot entry per spawnable child (the ColorBase parent is scope=0)
+    const names = (it.variants&&it.variants.length&&meta(it).kind!=='crate')
+      ? it.variants.map(v=>it.cls+'_'+cleanSuffix(v)) : [it.cls];
+    names.forEach(nm=>{
+    s+='    <type name="'+nm+'">\n';
     s+='        <nominal>'+(e.nominal||0)+'</nominal>\n';
     s+='        <lifetime>'+(e.lifetime||0)+'</lifetime>\n';
     s+='        <restock>'+(e.restock||0)+'</restock>\n';
@@ -1205,6 +1382,7 @@ function genTypes(){
     usages.forEach(u=>{ s+='        <usage name="'+u+'"/>\n'; });
     tiers.forEach(t=>{ s+='        <value name="'+t+'"/>\n'; });
     s+='    </type>\n';
+    });
   });
   s+='</types>\n';
   return s;
@@ -1231,40 +1409,67 @@ function genConfig(){
 function arr(name,vals){ return '\t\t'+name+'[]=\n\t\t{\n'+vals.map(x=>'\t\t\t"'+x+'"').join(',\n')+'\n\t\t};\n'; }
 function matPath(it){ return `${proj.modName}\\data\\${meta(it).folder}\\${it.cls}.rvmat`; }
 function listOf(s){ return String(s==null?'':s).split(',').map(x=>x.trim()).filter(Boolean); }
-function globalHealthHp(hp){ return '\t\t\tclass GlobalHealth\n\t\t\t{\n\t\t\t\tclass Health\n\t\t\t\t{\n\t\t\t\t\thitpoints='+hp+';\n\t\t\t\t};\n\t\t\t};\n'; }
-function globalHealthRoots(roots,hp){
+function healthExtras(it){
+  let s='';
+  if(it.transferCoef!=null&&it.transferCoef!=='') s+='\t\t\t\t\ttransferToAttachmentsCoef='+fmt(it.transferCoef)+';\n';
+  const refs=listOf(it.refMats);
+  if(refs.length) s+='\t\t\t\t\tRefTexsMats[]={'+refs.map(r=>'"'+r+(/\.rvmat$/i.test(r)?'':'.rvmat')+'"').join(', ')+'};\n';
+  return s;
+}
+function globalHealthHp(it){
+  let s='\t\t\tclass GlobalHealth\n\t\t\t{\n\t\t\t\tclass Health\n\t\t\t\t{\n';
+  if(it.hp!=null&&it.hp!=='') s+='\t\t\t\t\thitpoints='+it.hp+';\n';
+  s+=healthExtras(it)+'\t\t\t\t};\n\t\t\t};\n';
+  return s;
+}
+function globalHealthRoots(roots,it){
   const tiers=[[1,''],[0.7,''],[0.5,'_damage'],[0.3,'_damage'],[0,'_destruct']];
   let s='\t\t\tclass GlobalHealth\n\t\t\t{\n\t\t\t\tclass Health\n\t\t\t\t{\n';
-  if(hp!=null&&hp!=='') s+='\t\t\t\t\thitpoints='+hp+';\n';
+  if(it.hp!=null&&it.hp!=='') s+='\t\t\t\t\thitpoints='+it.hp+';\n';
+  s+=healthExtras(it);
   s+='\t\t\t\t\thealthLevels[]=\n\t\t\t\t\t{\n';
   s+=tiers.map(([lvl,suf])=>{ const inner=roots.map(r=>'"'+r+suf+'.rvmat"').join(', '); return '\t\t\t\t\t\t{'+lvl+', {'+inner+'}}'; }).join(',\n')+'\n';
   s+='\t\t\t\t\t};\n\t\t\t\t};\n\t\t\t};\n';
   return s;
 }
+const GARMOR_CLASSES=['Projectile','Melee','Infected','FragGrenade'];
+function garmorOf(it){
+  // per-class table; legacy fields map onto Melee+Infected for old saves
+  if(it.garmorEx) return it.garmorEx;
+  const legacy={h:it.garmorHealth??0.9,b:it.garmorBlood??0.9,s:it.garmorShock??1.0};
+  return {Projectile:null,Melee:{...legacy},Infected:{...legacy},FragGrenade:null};
+}
 function globalArmorBlock(it){
-  const h=fmt(it.garmorHealth!=null?it.garmorHealth:0.9), bl=fmt(it.garmorBlood!=null?it.garmorBlood:0.9), sh=fmt(it.garmorShock!=null?it.garmorShock:1.0);
-  const grp=n=>'\t\t\t\tclass '+n+'\n\t\t\t\t{\n\t\t\t\t\tclass Health{damage='+h+';};\n\t\t\t\t\tclass Blood{damage='+bl+';};\n\t\t\t\t\tclass Shock{damage='+sh+';};\n\t\t\t\t};\n';
-  return '\t\t\tclass GlobalArmor\n\t\t\t{\n'+grp('Melee')+grp('Infected')+'\t\t\t};\n';
+  const g=garmorOf(it);
+  const grp=(n,v)=>'\t\t\t\tclass '+n+'\n\t\t\t\t{\n\t\t\t\t\tclass Health{damage='+fmt(v.h)+';};\n\t\t\t\t\tclass Blood{damage='+fmt(v.b)+';};\n\t\t\t\t\tclass Shock{damage='+fmt(v.s)+';};\n\t\t\t\t};\n';
+  let inner=''; GARMOR_CLASSES.forEach(n=>{ if(g[n]) inner+=grp(n,g[n]); });
+  return inner ? '\t\t\tclass GlobalArmor\n\t\t\t{\n'+inner+'\t\t\t};\n' : '';
 }
 function genDamage(it,prof){
   const roots = (prof&&prof.roots) || (it.dmgRoot&&it.dmgRoot.trim() ? [it.dmgRoot.trim()] : null);
   const fullH = it.fullHealth && roots;
   const hp = (it.hp!=null&&it.hp!=='');
-  if(!fullH && !hp && !it.garmor) return '';
+  const extras = (it.transferCoef!=null&&it.transferCoef!=='')||listOf(it.refMats).length;
+  if(!fullH && !hp && !it.garmor && !extras) return '';
   let s='\t\tclass DamageSystem\n\t\t{\n';
-  if(fullH) s+=globalHealthRoots(roots,it.hp);
-  else if(hp) s+=globalHealthHp(it.hp);
+  if(fullH) s+=globalHealthRoots(roots,it);
+  else if(hp||extras) s+=globalHealthHp(it);
   if(it.garmor) s+=globalArmorBlock(it);
   s+='\t\t};\n';
   return s;
 }
 
+function cleanSuffix(v){ return String(v.suffix||'').trim().replace(/[^A-Za-z0-9_]/g,'')||'Variant'; }
+function varTexPath(it,v){ return `${proj.modName}\\data\\${meta(it).folder}\\${it.cls}_${cleanSuffix(v)}.paa`; }
+
 function genItem(it){
   const b=meta(it); const slots=b.slots||3;
   const prof=ADV_PROFILES[it.base]||{};
   const adv=!!it.adv;
-  let s='\tclass '+it.cls+': '+it.base+'\n\t{\n';
-  s+='\t\tscope=2;\n';
+  const hasVars = !(b.kind==='crate') && it.variants && it.variants.length>0;
+  const parentName = hasVars ? it.cls+'_ColorBase' : it.cls;
+  let s='\tclass '+parentName+': '+it.base+'\n\t{\n';
+  s+='\t\tscope='+(hasVars?0:2)+';\n';   // variant parents are hidden; children are spawnable
   s+='\t\tdisplayName="'+(it.display||it.cls).replace(/"/g,'')+'";\n';
   s+='\t\tdescriptionShort="'+(it.desc||'').replace(/"/g,'')+'";\n';
 
@@ -1320,6 +1525,7 @@ function genItem(it){
   if(b.armband) sel=ARMBAND_SELECTIONS;
   else if(b.camoMask) sel=CAMO_MASK_SELECTIONS;
   else if(b.zbytek) sel=['zbytek'];
+  else if(b.selNames&&b.selNames.length) sel=b.selNames;   // custom/imported base with named selections
   else if(adv&&prof.sel) sel=prof.sel;
   if(sel) s+=arr('hiddenSelections',sel);
 
@@ -1331,16 +1537,32 @@ function genItem(it){
     s+='\t\tclass ClothingTypes\n\t\t{\n\t\t\tmale="\\DZ\\characters\\tops\\armbend_dynamic_m.p3d";\n\t\t\tfemale="\\DZ\\characters\\tops\\armbend_dynamic_f.p3d";\n\t\t};\n';
   }
 
-  // textures
-  const p=texPath(it);
-  s+=arr('hiddenSelectionsTextures',Array.from({length:slots},()=>p));
-  // materials (advanced glow/custom rvmat)
+  // textures (variant parents carry no texture — each child brings its own)
+  if(!hasVars){
+    const p=texPath(it);
+    s+=arr('hiddenSelectionsTextures',Array.from({length:slots},()=>p));
+  }
+  // materials (advanced glow/custom rvmat) — shared by all variants via the parent
   if(adv&&it.rvmat){ const mp=matPath(it); s+=arr('hiddenSelectionsMaterials',Array.from({length:slots},()=>mp)); }
 
   // damage system (health tiers + GlobalArmor)
   s+=genDamage(it,prof);
 
   s+='\t};\n';
+
+  // variant children: scope=2 + texture (+ optional visibility) each
+  if(hasVars){
+    it.variants.forEach(v=>{
+      const sfx=cleanSuffix(v);
+      s+='\tclass '+it.cls+'_'+sfx+': '+parentName+'\n\t{\n';
+      s+='\t\tscope=2;\n';
+      s+='\t\tdisplayName="'+((it.display||it.cls)+' '+sfx.replace(/_/g,' ')).replace(/"/g,'')+'";\n';
+      if(v.vis!=null&&v.vis!=='') s+='\t\tvisibilityModifier='+fmt(v.vis)+';\n';
+      const vp=varTexPath(it,v);
+      s+=arr('hiddenSelectionsTextures',Array.from({length:slots},()=>vp));
+      s+='\t};\n';
+    });
+  }
   return s;
 }
 function fmt(n){ n=Number(n); return Number.isInteger(n)?n+'.0':String(n); }
@@ -1427,6 +1649,8 @@ ${sign ? `Copy-Item (Join-Path $privDir "$keyName.bikey") $keysDir -Force -Error
 /* ----------------------------- texture handling ----------------------------- */
 function loadImageFile(file){
   const it=current(); if(!it)return;
+  const target = texTarget!=null ? (it.variants||[]).find(v=>v.id===texTarget) : null;
+  texTarget=null;
   const reader=new FileReader();
   reader.onload=e=>{
     const img=new Image();
@@ -1434,7 +1658,8 @@ function loadImageFile(file){
       const res=Number(it.res)||2048;
       const c=document.createElement('canvas'); c.width=res; c.height=res;
       const cx=c.getContext('2d'); cx.drawImage(img,0,0,res,res);
-      it.tex=c.toDataURL('image/png');
+      const durl=c.toDataURL('image/png');
+      if(target) target.tex=durl; else it.tex=durl;
       renderAll();
     };
     img.src=e.target.result;
@@ -1481,7 +1706,9 @@ function buildFileMap(){
   if(ensureEcon().include) files[`types.xml`]=genTypes();
   proj.items.forEach(it=>{
     const b=meta(it);
-    if(it.tex) files[`${proj.modName}/data/${b.folder}/${it.cls}.png`]=dataURLtoUint8(it.tex);
+    if(it.variants&&it.variants.length&&b.kind!=='crate'){
+      it.variants.forEach(v=>{ if(v.tex) files[`${proj.modName}/data/${b.folder}/${it.cls}_${cleanSuffix(v)}.png`]=dataURLtoUint8(v.tex); });
+    } else if(it.tex) files[`${proj.modName}/data/${b.folder}/${it.cls}.png`]=dataURLtoUint8(it.tex);
     if(it.adv && it.rvmat) files[`${proj.modName}/data/${b.folder}/${it.cls}.rvmat`]=b64ToUint8(it.rvmat.b64);
   });
   return files;
@@ -1533,6 +1760,9 @@ function bindField(id,key,parse){
 $('fBase').addEventListener('change',()=>{ const it=current(); if(!it)return;
   const val=$('fBase').value;
   if(val==='__custom__'){ it.customBase=true; it.base=''; it.folder=it.folder||'items'; it.cSlots=it.cSlots||3; it.tpl=null; renderAll(); return; }
+  if(val.startsWith('__lib__')){ const lib=(proj.baseLib||[]).find(x=>'__lib__'+x.cls===val); if(lib){
+    it.customBase=true; it.base=lib.cls; it.cSel=(lib.sel||[]).join(', '); it.cSlots=(lib.sel||[]).length||3;
+    it.reqAddons=lib.addon?[lib.addon]:[]; it.folder=guessFolder(lib.cls); it.tpl=null; renderAll(); } return; }
   it.customBase=false; it.reqAddons=[];
   const b=BASE_BY_CLS[val]; it.base=b.cls;
   if(it.cargoW==null && b.cargo){ it.cargoW=b.cargo[0]; it.cargoH=b.cargo[1]; }
@@ -1545,6 +1775,19 @@ $('fBase').addEventListener('change',()=>{ const it=current(); if(!it)return;
 $('fCustomBase').addEventListener('input',()=>{ const it=current(); if(!it)return; it.base=$('fCustomBase').value.trim(); renderList(); renderOutputs(); });
 $('fCustomFolder').addEventListener('change',()=>{ const it=current(); if(!it)return; it.folder=$('fCustomFolder').value; it.tpl=null; renderTplPicker(it); renderOutputs(); drawTex(it); });
 $('fCustomSlots').addEventListener('input',()=>{ const it=current(); if(!it)return; it.cSlots=parseInt($('fCustomSlots').value)||3; renderOutputs(); });
+$('fCustomSel').addEventListener('input',()=>{ const it=current(); if(!it)return; it.cSel=$('fCustomSel').value; renderOutputs(); });
+// base-library import (another mod's config.cpp → selectable bases)
+$('btnImportBases').onclick=()=>$('basesInput').click();
+$('basesInput').onchange=e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader();
+  r.onload=()=>{ let res; try{ res=parseBaseLib(r.result); }catch(x){ alert('Could not parse that config: '+x.message); return; }
+    if(!res.entries.length){ alert('No base classes found in that config\'s CfgVehicles.'); return; }
+    if(!proj.baseLib)proj.baseLib=[];
+    let added=0;
+    res.entries.forEach(en=>{ if(!proj.baseLib.some(x=>x.cls===en.cls)){ proj.baseLib.push({cls:en.cls,sel:en.sel||[],addon:res.addon||'',from:res.addon||f.name}); added++; } });
+    buildBaseSelect(); renderOutputs();
+    alert(`Imported ${added} base class(es)${res.addon?' from "'+res.addon+'"':''}.\n\nThey're now in the base dropdown under "Imported (modded)". Selection names and the required addon were filled in automatically where the config declared them.`);
+  };
+  r.readAsText(f); e.target.value=''; };
 $('fReqAddons').addEventListener('input',()=>{ const it=current(); if(!it)return; it.reqAddons=$('fReqAddons').value.split(',').map(x=>x.trim()).filter(Boolean); renderOutputs(); });
 $('fCustomCargo').addEventListener('change',()=>{ const it=current(); if(!it)return; if($('fCustomCargo').checked){ it.cargoW=it.cargoW??4; it.cargoH=it.cargoH??4; } else { it.cargoW=null; it.cargoH=null; } renderEditor(); renderOutputs(); });
 $('fCustomArmor').addEventListener('change',()=>{ const it=current(); if(!it)return; it.cArmor=$('fCustomArmor').checked; if(it.cArmor){ it.melee=it.melee??0.9; it.firearm=it.firearm??0.9; } renderEditor(); renderOutputs(); });
@@ -1575,6 +1818,18 @@ $('btnTplCmd').onclick=()=>navigator.clipboard.writeText(TPL_CMD);
 $('fAdvItem').addEventListener('change',()=>{ const it=current(); if(!it)return; it.adv=$('fAdvItem').checked; renderEditor(); renderOutputs(); renderList(); });
 $('fFullHealth').addEventListener('change',()=>{ const it=current(); if(!it)return; it.fullHealth=$('fFullHealth').checked; renderOutputs(); });
 $('fAtt').addEventListener('input',()=>{ const it=current(); if(!it)return; it.att=$('fAtt').value.split('\n').map(x=>x.trim()).filter(Boolean); renderOutputs(); });
+// quick-add chips of known vanilla slot names
+(function buildAttChips(){
+  const SLOTS=['Shoulder','Melee','Pistol','Belt_Back','VestGrenadeA','VestGrenadeB','VestGrenadeC','VestGrenadeD',
+    'NVG','helmetFlashlight','Chemlight','WalkieTalkie','Body','Legs','Headgear','Mask','Gloves','Feet'];
+  const box=$('attChips');
+  SLOTS.forEach(sl=>{ const b=document.createElement('button');
+    b.className='ghost small'; b.style.cssText='padding:2px 7px;font-size:11px'; b.textContent='+ '+sl;
+    b.onclick=()=>{ const it=current(); if(!it)return;
+      const cur=$('fAtt').value.split('\n').map(x=>x.trim()).filter(Boolean);
+      if(!cur.includes(sl)){ cur.push(sl); $('fAtt').value=cur.join('\n'); it.att=cur; renderOutputs(); } };
+    box.appendChild(b); });
+})();
 // full modded-clothing fields
 $('fModdedOn').addEventListener('change',()=>{ const it=current(); if(!it)return; it.modded=$('fModdedOn').checked; $('moddedFields').style.display=it.modded?'block':'none'; renderOutputs(); });
 function bindModded(id,key,parse){ $(id).addEventListener('input',()=>{ const it=current(); if(!it)return; let v=$(id).value; if(parse)v=parse(v); it[key]=v; renderOutputs(); }); }
@@ -1582,8 +1837,8 @@ bindModded('fModel','model'); bindModded('fModelM','modelM'); bindModded('fModel
 bindModded('fInvSlot','invSlot'); bindModded('fItemInfo','itemInfo'); bindModded('fSim','simulation');
 bindModded('fRepKits','repairKits'); bindModded('fRepCosts','repairCosts'); bindModded('fContAct','contActions'); bindModded('fDmgRoot','dmgRoot');
 bindModded('fRagQty','ragQty',v=>v===''?null:parseInt(v)); bindModded('fVarWet','varWetMax',v=>v===''?null:parseFloat(v)); bindModded('fQuickBar','quickBar',v=>v===''?null:parseInt(v));
-bindModded('fGAHealth','garmorHealth',v=>v===''?0.9:parseFloat(v)); bindModded('fGABlood','garmorBlood',v=>v===''?0.9:parseFloat(v)); bindModded('fGAShock','garmorShock',v=>v===''?1:parseFloat(v));
-$('fGArmor').addEventListener('change',()=>{ const it=current(); if(!it)return; it.garmor=$('fGArmor').checked; $('gArmorRow').style.display=it.garmor?'grid':'none'; renderOutputs(); });
+bindModded('fRefMats','refMats'); bindModded('fTransferCoef','transferCoef',v=>v===''?null:parseFloat(v));
+$('fGArmor').addEventListener('change',()=>{ const it=current(); if(!it)return; it.garmor=$('fGArmor').checked; $('gArmorRow').style.display=it.garmor?'block':'none'; renderGArmor(it); renderOutputs(); });
 const rvmatDrop=$('rvmatDrop'), rvmatInput=$('rvmatInput');
 function loadRvmat(file){ const it=current(); if(!it||!file)return; const r=new FileReader();
   r.onload=()=>{ const u=new Uint8Array(r.result); let bin=''; for(let i=0;i<u.length;i++)bin+=String.fromCharCode(u[i]); it.rvmat={name:file.name,b64:btoa(bin)}; renderEditor(); renderOutputs(); };
@@ -1607,6 +1862,8 @@ drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('drag'
 document.addEventListener('paste',e=>{ if(document.getElementById('paintModal').classList.contains('open'))return; if(!current())return; for(const it of e.clipboardData.items){ if(it.type.startsWith('image/')){ loadImageFile(it.getAsFile()); e.preventDefault(); break; } } });
 $('btnClearTex').onclick=()=>{ const it=current(); if(it){it.tex=null;renderAll();} };
 $('btnPaint').onclick=()=>{ const it=current(); if(it)Paint.open(it); };
+$('btnAddVariant').onclick=()=>{ const it=current(); if(!it)return; if(!it.variants)it.variants=[];
+  it.variants.push({id:uid(),suffix:'',tex:null,vis:null}); renderEditor(); renderOutputs(); };
 
 /* tabs */
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
@@ -1637,10 +1894,10 @@ $('helpFromModded').onclick=e=>{ e.preventDefault(); $('helpModal').classList.ad
 $('helpFromAtt').onclick=e=>{ e.preventDefault(); $('helpModal').classList.add('open'); };
 $('btnHelpClose').onclick=()=>$('helpModal').classList.remove('open');
 $('helpModal').addEventListener('click',e=>{ if(e.target.id==='helpModal')$('helpModal').classList.remove('open'); });
-$('btnNew').onclick=()=>{ if(confirm('Start a new project? Unsaved work is lost.')){ proj=newProject(); activeId=null; syncProjInputs(); renderAll(); } };
+$('btnNew').onclick=()=>{ if(confirm('Start a new project? Unsaved work is lost.')){ proj=newProject(); activeId=null; buildBaseSelect(); syncProjInputs(); renderAll(); } };
 $('btnSaveProj').onclick=()=>{ downloadBlob(new Blob([JSON.stringify(proj,null,2)],{type:'application/json'}), proj.modName+'.forge.json'); };
 $('btnLoadProj').onclick=()=>$('projInput').click();
-$('projInput').onchange=e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{ try{ proj=JSON.parse(r.result); activeId=proj.items[0]?.id||null; syncProjInputs(); renderAll(); }catch(x){ alert('Bad project file'); } }; r.readAsText(f); e.target.value=''; };
+$('projInput').onchange=e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{ try{ proj=Object.assign(newProject(),JSON.parse(r.result)); activeId=proj.items[0]?.id||null; buildBaseSelect(); syncProjInputs(); renderAll(); }catch(x){ alert('Bad project file'); } }; r.readAsText(f); e.target.value=''; };
 $('btnImportCpp').onclick=()=>$('cppInput').click();
 $('cppInput').onchange=e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader();
   r.onload=()=>{ let res; try{ res=parseConfig(r.result); }catch(x){ alert('Could not parse that config.cpp:\n'+x.message); return; }
@@ -1682,11 +1939,12 @@ const Paint = (()=>{
   function doRedo(){ if(!redo.length)return; undo.push(pctx.getImageData(0,0,W,W)); pctx.putImageData(redo.pop(),0,0); render(); updUndoBtns(); }
   function updUndoBtns(){ $('pmUndo').disabled=!undo.length; $('pmRedo').disabled=!redo.length; }
 
-  function open(it){
-    if(!it){ return; } item=it; W=Number(it.res)||2048;
+  let vTarget=null;   // variant being painted (null = the item's own texture)
+  function open(it,v){
+    if(!it){ return; } item=it; vTarget=v||null; W=Number(it.res)||2048;
     pc=document.createElement('canvas'); pc.width=pc.height=W; pctx=pc.getContext('2d');
     undo.length=0; redo.length=0;
-    $('pmItemName').textContent=it.display||it.cls;
+    $('pmItemName').textContent=(it.display||it.cls)+(v?(' — '+(v.suffix||'variant')):'');
     $('pmRes').textContent=W+' × '+W;
     $('paintModal').classList.add('open');
     $('pmMirrorX').classList.toggle('active',mirrorX); $('pmMirrorY').classList.toggle('active',mirrorY);
@@ -1695,7 +1953,8 @@ const Paint = (()=>{
       x.fillStyle='#3a352f';x.fillRect(0,0,16,16);x.fillStyle='#2a2722';x.fillRect(0,0,8,8);x.fillRect(8,8,8,8);
       checker=dctx.createPattern(c,'repeat'); }
     // load the starting image into the paint layer
-    const startSrc = it.tex || tplSrc(it);   // current texture, else template, else blank
+    // variant: its own texture, else the item texture (handy base for recolors), else template
+    const startSrc = (v&&v.tex) || it.tex || tplSrc(it);
     if(startSrc){ const img=new Image(); img.onload=()=>{ pctx.clearRect(0,0,W,W); pctx.drawImage(img,0,0,W,W); render(); }; img.onerror=()=>render(); img.src=startSrc; }
     else pctx.clearRect(0,0,W,W);
     // size + auto-fit once the stage has its real dimensions (ResizeObserver handles late layout)
@@ -1703,7 +1962,7 @@ const Paint = (()=>{
     updUndoBtns();
   }
   function tplSrc(it){ const b=bucketFor(it); return (it.tpl && b) ? 'templates/'+b+'/'+it.tpl : null; }
-  function close(){ $('paintModal').classList.remove('open'); item=null; pc=null; pctx=null; }
+  function close(){ $('paintModal').classList.remove('open'); item=null; vTarget=null; pc=null; pctx=null; }
 
   // use clientWidth/Height (true layout size, unaffected by any visual page scaling)
   function sizeStage(){ const s=$('pmStage'); dc.width=Math.max(1,s.clientWidth); dc.height=Math.max(1,s.clientHeight); }
@@ -1802,7 +2061,9 @@ const Paint = (()=>{
     const img=new Image(); img.onload=()=>{ snap(); pctx.clearRect(0,0,W,W); pctx.drawImage(img,0,0,W,W); render(); }; img.src=src; }
   function clear(){ snap(); pctx.clearRect(0,0,W,W); render(); }
   function fillAll(){ snap(); pctx.globalAlpha=opacity; pctx.globalCompositeOperation='source-over'; pctx.fillStyle=color; pctx.fillRect(0,0,W,W); resetCtx(); render(); }
-  function apply(){ if(!item)return; item.tex=pc.toDataURL('image/png'); close(); renderAll(); }
+  function apply(){ if(!item)return; const durl=pc.toDataURL('image/png');
+    if(vTarget) vTarget.tex=durl; else item.tex=durl;
+    close(); renderAll(); }
 
   // ---- copy / paste / export (reuse patterns across a set) ----
   function flashBtn(id,txt){ const b=$(id); const o=b.textContent; b.textContent=txt; setTimeout(()=>b.textContent=o,1100); }
@@ -1875,7 +2136,9 @@ fetch('templates/index.json',{cache:'no-store'})
   .catch(()=>{});
 (async()=>{
   const saved=await restoreSaved();
-  if(saved&&Array.isArray(saved.items)&&saved.items.length){ proj=Object.assign(newProject(),saved); activeId=proj.items[0].id; }
+  if(saved&&Array.isArray(saved.items)&&(saved.items.length||(saved.baseLib&&saved.baseLib.length))){
+    proj=Object.assign(newProject(),saved); activeId=proj.items[0]?.id||null; }
+  buildBaseSelect();
   syncProjInputs();
   renderAll();
   Paint.init();

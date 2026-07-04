@@ -19,12 +19,22 @@ No Workbench, no hand-editing configs. Just a photo edit and a few clicks.
 - **202 vanilla base items** across jackets, shirts, pants, vests, headgear,
   masks, gloves, shoes, backpacks, belts, glasses, and containers — pulled
   straight from the game configs (accurate class names).
-- **Modded bases** — inherit from any other mod's item by typing its class name
-  and required addon.
+- **Variant packs (camo sets)** — define an item once, add N textures: Kitbash
+  generates a hidden `_ColorBase` parent plus a spawnable child per variant
+  (each with its own texture, visibility, and loot entry). Black/Olive/Marpat
+  packs in minutes.
+- **Retexture modded gear** — *Import bases from a mod's config.cpp*: Kitbash
+  reads another mod's classes, their `hiddenSelections` names, and required
+  addon, and adds them to the base dropdown. Then reskin them like vanilla items.
+- **Modded bases** — or inherit from any mod's item manually by typing its class
+  name, named selections, and required addon.
 - **Per-item stats** — cargo size, heat isolation (thermals), melee/firearm
   armor, weight, item size, visibility, and **durability** presets.
 - **Advanced / "Special" items** — custom `.rvmat` materials (glow/emissive),
-  attachments, hidden selections, and full `DamageSystem` damage tiers.
+  attachments, hidden selections, and full `DamageSystem` damage tiers with
+  `RefTexsMats` and `transferToAttachmentsCoef`.
+- **Full GlobalArmor** — per-hit-type protection (Projectile / Melee / Infected /
+  FragGrenade), each with its own Health/Blood/Shock passthrough.
 - **Full modded-clothing configs** — author or import complete custom items
   (custom `model` + ClothingTypes, inventory/itemInfo wiring, **proxy/attachment
   slots**, `GlobalArmor`, repair, `ContinuousActions`, custom `healthLevels`),
@@ -139,8 +149,10 @@ So in practice:
   config **around a model you supply**. You bring the `.p3d`; Kitbash does the config.
   Point `build.ps1` at your assets folder (Project tab → *Custom assets folder*, or
   `-AssetsPath`) and it packs the models/rvmats into the PBO in one build.
-- **Adding a brand-new proxy point to a model that lacks one**: not possible here —
-  that requires the model in Object Builder.
+- **Adding slots to items whose model lacks the proxy** (e.g. a pistol slot on
+  vanilla jeans): the slot **works in the inventory** — it appears and holds the
+  item — but the attached item is **invisible on your character**. Making it
+  render requires adding the proxy point to the model in Object Builder.
 
 **Import** an existing mod's `config.cpp` (e.g. a custom-clothing mod) and Kitbash
 round-trips all of the above so you can edit and re-export it. (Textures and
