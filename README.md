@@ -98,8 +98,15 @@ Interactive's assets — so they are **not** distributed here. Generate them
 yourself, once, from your own game install:
 
 ```powershell
-.\build-templates.ps1
+powershell -ExecutionPolicy Bypass -File .\build-templates.ps1
+# Steam library on another drive? Point it at your DayZ install:
+powershell -ExecutionPolicy Bypass -File .\build-templates.ps1 -DayZPath "E:\SteamLibrary\steamapps\common\DayZ"
 ```
+
+> **"…is not digitally signed. You cannot run this script on the current system"?**
+> Windows blocks downloaded scripts by default. Use the `-ExecutionPolicy Bypass`
+> form above (applies to that one run only — no admin, no system change), or
+> unblock the scripts once with `Get-ChildItem *.ps1 | Unblock-File`.
 
 This extracts every clothing/gear `*_co` texture from your DayZ PBOs (via DayZ
 Tools' `BankRev` + `ImageToPAA`) into `templates/` and writes an `index.json`
@@ -112,7 +119,7 @@ the app reads. Re-run after a game update. Use `-Size 1024` for smaller files.
    your PNGs, and `build.ps1`.
 3. In that folder, run:
    ```powershell
-   .\build.ps1
+   powershell -ExecutionPolicy Bypass -File .\build.ps1
    ```
    It auto-detects DayZ Tools, converts PNG→PAA, and packs the PBO into
    `@<ModName>/addons`. Enable signing in the Project tab if you want a `.bikey`.
@@ -120,7 +127,7 @@ the app reads. Re-run after a game update. Use `-Size 1024` for smaller files.
    spawn as loot.
 
 **Custom models / assets:** if your mod ships its own `.p3d`/`.rvmat` files, set a
-**Custom assets folder** in the Project tab (or run `./build.ps1 -AssetsPath "…"`).
+**Custom assets folder** in the Project tab (or run `powershell -ExecutionPolicy Bypass -File .\build.ps1 -AssetsPath "…"`).
 `build.ps1` copies that folder into the mod before packing — so a model-included
 mod builds in one shot. It skips `config.cpp`/`CfgVehicles.cpp` (Kitbash owns those).
 
