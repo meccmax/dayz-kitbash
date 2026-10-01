@@ -251,7 +251,7 @@
             </div>
           </div>
           <div id="tplMissing" class="hint" style="display:none">
-            No templates yet. Run <code>build-templates.ps1</code> once to extract vanilla UV layouts, then reload.
+            No templates yet. Run <code>build-templates.ps1</code> once (in PowerShell, from the Kitbash folder) to extract vanilla UV layouts, then reload. Steam library on another drive? Add <code>-DayZPath "X:\…\DayZ"</code> to the command.
             <button class="ghost small" id="btnTplCmd" style="margin-top:6px">Copy command</button>
           </div>
         </div>
@@ -419,7 +419,7 @@
         <div class="field">
           <label class="lbl">Custom assets folder (models, rvmats — optional)</label>
           <input id="pAssets" placeholder="e.g. D:\MyMod\MyMod (or its assets\ folder)">
-          <div class="hint">For custom-model mods: build.ps1 copies this folder's files into the mod before packing (skips config.cpp/CfgVehicles.cpp — Kitbash owns those). Also settable per build: <code>./build.ps1 -AssetsPath "…"</code>.</div>
+          <div class="hint">For custom-model mods: build.ps1 copies this folder's files into the mod before packing (skips config.cpp/CfgVehicles.cpp — Kitbash owns those). Also settable per build: <code>powershell -ExecutionPolicy Bypass -File .\build.ps1 -AssetsPath "…"</code>.</div>
         </div>
         <div class="chk"><input type="checkbox" id="pSign"><label for="pSign" class="small">Sign the PBO (generate &amp; use a bikey)</label></div>
       </div>
@@ -460,7 +460,7 @@
           • <code>&lt;ModName&gt;/config.cpp</code><br>
           • <code>&lt;ModName&gt;/data/&lt;category&gt;/&lt;class&gt;.png</code> for each textured item<br>
           • <code>build.ps1</code> next to it<br>
-          Then open PowerShell there and run <code>./build.ps1</code> to produce the PBO.
+          Then open PowerShell there and run <code>powershell -ExecutionPolicy Bypass -File .\build.ps1</code> to produce the PBO.
           If your browser blocks folder writing, you'll get a .zip instead.
         </p>
       </div>
@@ -490,7 +490,7 @@
         <li><b>Set stats</b> — cargo, thermals, armor, durability, weight, size.</li>
         <li><b>Add a texture</b> — drop/paste an image, or click <b>🖌 Paint / edit texture</b> to paint it in-app over the vanilla UV layout.</li>
         <li><b>Export Mod</b> — writes <code>&lt;ModName&gt;/config.cpp</code>, your PNGs, and <code>build.ps1</code>.</li>
-        <li><b>Run <code>build.ps1</code></b> in that folder — converts PNG→PAA and packs the PBO (needs DayZ Tools).</li>
+        <li><b>Run <code>build.ps1</code></b> in that folder with <code>powershell -ExecutionPolicy Bypass -File .\build.ps1</code> — converts PNG→PAA and packs the PBO (needs DayZ Tools). The <code>-ExecutionPolicy Bypass</code> part avoids Windows' "not digitally signed" block for that one run.</li>
       </ul>
 
       <h3>UV templates</h3>
@@ -532,7 +532,7 @@
       set the <code>model</code> path, ClothingTypes, inventory slot, proxy/attachment slots, armor, repair, etc.
       Kitbash generates the entire config <b>around a model you supply</b>. You bring the <code>.p3d</code>; Kitbash does the rest.</p>
       <p>To pack those model/rvmat files into the PBO, set a <b>Custom assets folder</b> in the Project tab (or
-      run <code>./build.ps1 -AssetsPath "…"</code>). <code>build.ps1</code> copies that folder into the mod before
+      run <code>powershell -ExecutionPolicy Bypass -File .\build.ps1 -AssetsPath "…"</code>). <code>build.ps1</code> copies that folder into the mod before
       packing, so a model-included mod builds in one go — it skips <code>config.cpp</code>/<code>CfgVehicles.cpp</code>
       (Kitbash owns those).</p>
 
@@ -648,7 +648,7 @@ const BASES = [
   {cls:'DirtBikeHelmet_ColorBase',label:'Dirt Bike Helmet',cat:'Headgear',folder:'headgear',cargo:null,heat:0.8,armor:true},
   {cls:'BoonieHat_ColorBase',label:'Boonie Hat',cat:'Headgear',folder:'headgear',cargo:null,heat:0.6},
   {cls:'BeanieHat_ColorBase',label:'Beanie',cat:'Headgear',folder:'headgear',cargo:null,heat:0.7},
-  {cls:'RadarCap_ColorBase',label:'Baseball Cap',cat:'Headgear',folder:'headgear',cargo:null,heat:0.5},
+  {cls:'RadarCap_ColorBase',label:'Radar Cap',cat:'Headgear',folder:'headgear',cargo:null,heat:0.5},
   {cls:'Ushanka_ColorBase',label:'Ushanka',cat:'Headgear',folder:'headgear',cargo:null,heat:0.9},
   {cls:'MilitaryBeret_ColorBase',label:'Beret',cat:'Headgear',folder:'headgear',cargo:null,heat:0.5},
   {cls:'CowboyHat_ColorBase',label:'Cowboy Hat',cat:'Headgear',folder:'headgear',cargo:null,heat:0.5},
@@ -935,7 +935,7 @@ function defaultItem(baseCls){
     : isCustom ? {cls:'',label:'Custom Item',folder:'items',cargo:null,heat:0.7,slots:3} : (BASE_BY_CLS[baseCls] || BASES[0]);
   const it = {
     id:uid(), base:b.cls,
-    cls:nextClassName(isCustom?{cls:'custom_item'}:b),
+    cls:nextClassName(lib?b:(isCustom?{cls:'custom_item'}:b)),
     display:(proj.brand||'')+(isCustom?'Custom Item':b.label),
     desc:'Custom Gear',
     cargoW:b.cargo?b.cargo[0]:null, cargoH:b.cargo?b.cargo[1]:null,
@@ -967,13 +967,24 @@ function defaultItem(baseCls){
     if(lib){ it.cSel=(lib.sel||[]).join(', '); it.cSlots=(lib.sel||[]).length||3; it.reqAddons=lib.addon?[lib.addon]:[]; } }
   return it;
 }
+function classRoot(cls){ return String(cls||'').replace(/_ColorBase$/i,'').replace(/Helmet$/,'').toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'')||'item'; }
 function nextClassName(b){
-  const root = b.cls.replace(/_ColorBase$/,'').replace(/Helmet$/,'').toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
+  const root = classRoot(b&&b.cls);
   let n=1, name;
   do{ name = root+'_'+(proj.prefix||'mm')+'_'+String(n).padStart(2,'0'); n++; }
   while(proj.items.some(it=>it.cls===name));
   return name;
 }
+/* next free name for a duplicate: foo_mm_01 -> foo_mm_02 (works for any base, vanilla or modded) */
+function nextCopyName(cls){
+  const m=String(cls||'item').match(/^(.*?)(\d+)$/);
+  const stem=m?m[1]:String(cls||'item')+'_', width=m?m[2].length:2; let n=m?parseInt(m[2],10)+1:2, name;
+  do{ name=stem+String(n).padStart(width,'0'); n++; } while(proj.items.some(it=>it.cls===name));
+  return name;
+}
+/* was this name/display auto-generated from the given base (i.e. safe to re-derive)? */
+function isAutoClass(cls,baseCls){ const re=new RegExp('^'+classRoot(baseCls)+'_'+(proj.prefix||'mm').replace(/[^A-Za-z0-9_]/g,'')+'_\\d{2,}$'); return re.test(cls||''); }
+const IDENT=/^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /* ----------------------------- DOM refs ----------------------------- */
 const $ = id=>document.getElementById(id);
@@ -1212,12 +1223,15 @@ function drawTex(it){
 function validate(){
   const warns=[]; const seen={}; const noTex=[];
   if(!proj.modName||!proj.modName.trim()) warns.push({sev:'err',msg:'Mod name (Project tab) is empty.'});
+  else if(!IDENT.test(proj.modName)) warns.push({sev:'err',msg:`Mod name <code>${esc(proj.modName)}</code> must be letters, numbers and _ only, not starting with a digit — it becomes the CfgPatches class and the PBO folder.`});
   proj.items.forEach((it,i)=>{
     const label=esc(it.display||it.cls||('item '+(i+1)));
     if(!it.cls||!it.cls.trim()) warns.push({sev:'err',msg:`${label}: class name is empty.`});
+    else if(!IDENT.test(it.cls)) warns.push({sev:'err',msg:`${label}: class name <code>${esc(it.cls)}</code> must be letters, numbers and _ only, not starting with a digit.`});
     else if(seen[it.cls]) warns.push({sev:'err',msg:`Duplicate class name <code>${esc(it.cls)}</code>.`});
     else seen[it.cls]=true;
     if(it.customBase&&(!it.base||!it.base.trim())) warns.push({sev:'err',msg:`${label}: modded base class not set.`});
+    else if(it.customBase&&!IDENT.test(it.base)) warns.push({sev:'err',msg:`${label}: modded base class <code>${esc(it.base)}</code> isn't a valid class name.`});
     if(it.customBase&&(!it.reqAddons||!it.reqAddons.length)) warns.push({sev:'warn',msg:`${label}: no required addon for the modded base — the game may fail to load its parent.`});
     if(it.variants&&it.variants.length&&meta(it).kind!=='crate'){
       const seenSfx={};
@@ -1247,16 +1261,25 @@ function renderOutputs(){
 }
 
 /* ---- autosave to IndexedDB (survives reload/close; handles large textures) ---- */
-const DB_NAME='dayz_item_forge', STORE='project';
+// Kitbash's own store. Older builds saved under 'dayz_item_forge' (a name DZ Forge could
+// also use on the same localhost origin) — that is read once as a fallback, never written.
+const DB_NAME='kitbash_project', LEGACY_DB='dayz_item_forge', STORE='project';
 let _db=null, _saveT=null;
-function openDB(){ return new Promise((res,rej)=>{ const r=indexedDB.open(DB_NAME,1);
+function openDB(name=DB_NAME){ return new Promise((res,rej)=>{ const r=indexedDB.open(name,1);
   r.onupgradeneeded=()=>r.result.createObjectStore(STORE); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+function dbGet(db){ return new Promise(res=>{ try{ const rq=db.transaction(STORE,'readonly').objectStore(STORE).get('current');
+  rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null); }catch(e){ res(null); } }); }
 function autosave(){ if(_saveT)clearTimeout(_saveT); _saveT=setTimeout(async()=>{
   try{ if(!_db)_db=await openDB(); _db.transaction(STORE,'readwrite').objectStore(STORE).put(JSON.parse(JSON.stringify(proj)),'current');
     const el=$('saveDot'); if(el){ el.textContent='saved'; el.style.opacity='1'; setTimeout(()=>el.style.opacity='0.35',900); }
   }catch(e){} },500); }
+function looksLikeKitbash(p){ return p&&Array.isArray(p.items)&&p.items.every(i=>i&&typeof i==='object'&&'cls' in i&&'base' in i); }
 async function restoreSaved(){ try{ if(!_db)_db=await openDB();
-  return await new Promise(res=>{ const rq=_db.transaction(STORE,'readonly').objectStore(STORE).get('current'); rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null); });
+  const cur=await dbGet(_db); if(cur) return cur;
+  // one-time migration from the legacy store (only if it holds a Kitbash-shaped project)
+  const legacy=await openDB(LEGACY_DB).catch(()=>null); if(!legacy) return null;
+  const old=await dbGet(legacy); legacy.close();
+  return looksLikeKitbash(old) ? old : null;
 }catch(e){ return null; } }
 function renderAll(){ renderList(); renderEditor(); renderOutputs(); }
 
@@ -1286,7 +1309,24 @@ function parseConfig(srcRaw){
     items.push(parseItem(m[1],m[2],body.slice(open+1,close)));
     re.lastIndex=close+1;
   }
-  return {modName,items};
+  return {modName,items:foldVariantPacks(items)};
+}
+/* Rebuild variant packs: a scope=0 parent whose children inherit from it in the same file
+   (Kitbash exports X_ColorBase + X_Suffix) becomes one item with variants again. */
+function foldVariantPacks(items){
+  const byCls=Object.fromEntries(items.map(i=>[i.cls,i])); const drop=new Set();
+  items.forEach(par=>{
+    if(par._scope!==0) return;
+    const kids=items.filter(k=>k!==par&&k.base===par.cls); if(!kids.length) return;
+    const stem=par.cls.replace(/_ColorBase$/i,'');
+    par.variants=kids.map(k=>({id:uid(), suffix:k.cls.startsWith(stem+'_')?k.cls.slice(stem.length+1):k.cls, tex:null, vis:k.vis??null}));
+    if(stem!==par.cls && !byCls[stem]) par.cls=stem;   // X_ColorBase -> X (Kitbash re-adds the suffix)
+    if(par.customBase && !par._texPath && kids[0]._texPath){   // parent has no textures — take the folder from a child
+      const mm=kids[0]._texPath.match(/\\data\\([^\\]+)\\/i); if(mm) par.folder=mm[1]; }
+    kids.forEach(k=>drop.add(k));
+  });
+  // parents defined in this same file are local, not missing modded bases
+  return items.filter(i=>!drop.has(i)).map(i=>{ delete i._scope; delete i._texPath; return i; });
 }
 function parseItem(name,base,inner){
   const vanilla=BASE_BY_CLS[base];
@@ -1297,6 +1337,8 @@ function parseItem(name,base,inner){
   it.id=uid(); it.cls=name; it.base=base; it.tpl=null; it.tex=null; it.rvmat=null;
   if(!vanilla){ it.customBase=true; it.folder=folder||'items'; it.cSlots=slots; it.reqAddons=[]; }
   const g=re=>{ const x=inner.match(re); return x?x[1]:null; };
+  const sc=g(/\bscope\s*=\s*(\d+)/); it._scope=sc!=null?+sc:null;
+  it._texPath=texPaths.length?texPaths[0][1]:null;
   it.display=g(/displayName\s*=\s*["']([^"']*)["']/i)||it.cls;
   it.desc=g(/descriptionShort\s*=\s*["']([^"']*)["']/i)||'';
   const cargo=inner.match(/itemsCargoSize\[\]\s*=\s*\{\s*(\d+)\s*,\s*(\d+)\s*\}/);
@@ -1389,7 +1431,8 @@ function genTypes(){
 }
 
 function genConfig(){
-  const usedBases=[...new Set(proj.items.map(i=>i.base).filter(bc=>bc&&bc.trim()))];
+  const defined=new Set(proj.items.flatMap(i=>[i.cls, i.cls+'_ColorBase']));
+  const usedBases=[...new Set(proj.items.map(i=>i.base).filter(bc=>bc&&bc.trim()&&!defined.has(bc)))];
   let s='';
   // CfgPatches
   s+='class CfgPatches\n{\n\tclass '+proj.modName+'\n\t{\n';
@@ -1574,7 +1617,8 @@ function genBuildPs(){
   return `# build.ps1 — generated by Kitbash
 # Optionally folds in a custom-assets folder (models, rvmats…), converts every
 # PNG under .\\${mod} to .paa, then packs ${mod}.pbo into .\\@${mod}\\addons.
-# Override the assets folder at run time:  ./build.ps1 -AssetsPath "D:\\MyMod\\assets"
+# Run:  powershell -ExecutionPolicy Bypass -File .\\build.ps1
+# Override the assets folder at run time:  ... -File .\\build.ps1 -AssetsPath "D:\\MyMod\\assets"
 param([string]$AssetsPath = '${assets}')
 $ErrorActionPreference = "Stop"
 $root      = $PSScriptRoot
@@ -1595,7 +1639,7 @@ if (-not $bin) {
   $steam = (Get-ItemProperty "HKCU:\\Software\\Valve\\Steam" -ErrorAction SilentlyContinue).SteamPath
   if ($steam) { $p = Join-Path $steam "steamapps\\common\\DayZ Tools\\Bin"; if (Test-Path $p) { $bin = $p } }
 }`}
-if (-not $bin -or -not (Test-Path $bin)) { throw "DayZ Tools Bin folder not found. Set the path in the Forge Project tab." }
+if (-not $bin -or -not (Test-Path $bin)) { throw "DayZ Tools Bin folder not found. Set the DayZ Tools path in the Kitbash Project tab." }
 
 $img2paa = Join-Path $bin "ImageToPAA\\ImageToPAA.exe"
 $builder = Join-Path $bin "AddonBuilder\\AddonBuilder.exe"
@@ -1627,7 +1671,7 @@ foreach ($png in $pngs) {
 
 # --- 2. pack PBO ---
 New-Item -ItemType Directory -Force -Path $outAddons | Out-Null
-$args = @($src, $outAddons, "-clear", "-packonly")
+$abArgs = @($src, $outAddons, "-clear", "-packonly")
 ${sign ? `# signing
 $keysDir = Join-Path $root "keys"
 $privDir = Join-Path $root "private"
@@ -1638,9 +1682,9 @@ $keyName = "${mod}"
 if (-not (Test-Path (Join-Path $privDir "$keyName.biprivatekey"))) {
   Push-Location $privDir; & $dskey $keyName | Out-Null; Pop-Location
 }
-$args += @("-sign", (Join-Path $privDir "$keyName.biprivatekey"))
+$abArgs += ("-sign=" + (Join-Path $privDir "$keyName.biprivatekey"))
 ` : ''}Write-Host "Packing ${mod}.pbo ..." -ForegroundColor Cyan
-& $builder @args
+& $builder @abArgs
 ${sign ? `Copy-Item (Join-Path $privDir "$keyName.bikey") $keysDir -Force -ErrorAction SilentlyContinue
 ` : ''}Write-Host "Done. Mod ready at $outAddons" -ForegroundColor Green
 `;
@@ -1685,7 +1729,7 @@ async function exportMod(){
       for(const [path,content] of Object.entries(files)){
         await writeInto(dir,path,content);
       }
-      showExp(`Wrote ${Object.keys(files).length} files into "${dir.name}". Open PowerShell there and run ./build.ps1`,true);
+      showExp(`Wrote ${Object.keys(files).length} files into "${dir.name}". Open PowerShell there and run: powershell -ExecutionPolicy Bypass -File .\\build.ps1`,true);
       return;
     }catch(err){
       if(err && err.name==='AbortError'){ showExp('Export cancelled.',false); return; }
@@ -1695,7 +1739,7 @@ async function exportMod(){
   // Fallback: zip download
   const zip=makeZip(files);
   downloadBlob(new Blob([zip],{type:'application/zip'}), proj.modName+'_mod.zip');
-  showExp('Folder write unavailable — downloaded a .zip instead. Unzip, then run build.ps1.',true);
+  showExp('Folder write unavailable — downloaded a .zip instead. Unzip, then in PowerShell run: powershell -ExecutionPolicy Bypass -File .\\build.ps1',true);
 }
 
 function buildFileMap(){
@@ -1751,22 +1795,34 @@ function makeZip(files){
 
 /* ----------------------------- events ----------------------------- */
 $('btnAdd').onclick=()=>{ const it=defaultItem($('fBase').value||'BDUJacket'); proj.items.push(it); activeId=it.id; renderAll(); };
-$('btnDelete').onclick=$('btnDelete').onclick=()=>{ if(!current())return; proj.items=proj.items.filter(i=>i.id!==activeId); activeId=proj.items.length?proj.items[0].id:null; renderAll(); };
-$('btnDup').onclick=()=>{ const it=current(); if(!it)return; const c=JSON.parse(JSON.stringify(it)); c.id=uid(); c.cls=nextClassName(BASE_BY_CLS[it.base]); c.display=it.display+' Copy'; proj.items.push(c); activeId=c.id; renderAll(); };
+$('btnDelete').onclick=()=>{ const cur=current(); if(!cur)return; if(!confirm('Delete "'+(cur.display||cur.cls)+'"? This can\'t be undone.'))return; proj.items=proj.items.filter(i=>i.id!==activeId); activeId=proj.items.length?proj.items[0].id:null; renderAll(); };
+$('btnDup').onclick=()=>{ const it=current(); if(!it)return; const c=JSON.parse(JSON.stringify(it)); c.id=uid(); c.cls=nextCopyName(it.cls); (c.variants||[]).forEach(v=>v.id=uid()); c.display=it.display+' Copy'; proj.items.push(c); activeId=c.id; renderAll(); };
 
 function bindField(id,key,parse){
   $(id).addEventListener('input',()=>{ const it=current(); if(!it)return; let v=$(id).value; if(parse)v=parse(v); it[key]=v; if(id==='fHeat')$('heatVal').textContent=Number(v).toFixed(2); renderList(); renderOutputs(); });
 }
 $('fBase').addEventListener('change',()=>{ const it=current(); if(!it)return;
   const val=$('fBase').value;
-  if(val==='__custom__'){ it.customBase=true; it.base=''; it.folder=it.folder||'items'; it.cSlots=it.cSlots||3; it.tpl=null; renderAll(); return; }
+  // snapshot what the item looked like under its old base, so untouched defaults can follow the new base
+  const oldMeta=meta(it), oldBase=it.customBase&&!(proj.baseLib||[]).some(x=>x.cls===it.base)?'custom_item':it.base;
+  const autoCls=isAutoClass(it.cls,oldBase)||isAutoClass(it.cls,'custom_item');
+  const brand=proj.brand||'';
+  const autoDisp=it.display===brand+oldMeta.label||it.display===brand+'Custom Item';
+  const defCargo=it.cargoW==null||(oldMeta.cargo&&it.cargoW===oldMeta.cargo[0]&&it.cargoH===oldMeta.cargo[1]);
+  const defHeat=it.heat==null||it.heat===oldMeta.heat;
+  const rename=(rootCls,label)=>{ if(autoCls){ it.cls=''; it.cls=nextClassName({cls:rootCls}); }   // blank first so it doesn't collide with itself
+    if(autoDisp) it.display=brand+label; };
+  if(val==='__custom__'){ it.customBase=true; it.base=''; it.folder=it.folder||'items'; it.cSlots=it.cSlots||3; it.tpl=null;
+    rename('custom_item','Custom Item'); renderAll(); return; }
   if(val.startsWith('__lib__')){ const lib=(proj.baseLib||[]).find(x=>'__lib__'+x.cls===val); if(lib){
     it.customBase=true; it.base=lib.cls; it.cSel=(lib.sel||[]).join(', '); it.cSlots=(lib.sel||[]).length||3;
-    it.reqAddons=lib.addon?[lib.addon]:[]; it.folder=guessFolder(lib.cls); it.tpl=null; renderAll(); } return; }
+    it.reqAddons=lib.addon?[lib.addon]:[]; it.folder=guessFolder(lib.cls); it.tpl=null;
+    rename(lib.cls,lib.cls); renderAll(); } return; }
   it.customBase=false; it.reqAddons=[];
   const b=BASE_BY_CLS[val]; it.base=b.cls;
-  if(it.cargoW==null && b.cargo){ it.cargoW=b.cargo[0]; it.cargoH=b.cargo[1]; }
-  if(!b.cargo){ it.cargoW=null; it.cargoH=null; }
+  rename(b.cls,b.label);
+  if(defCargo){ it.cargoW=b.cargo?b.cargo[0]:null; it.cargoH=b.cargo?b.cargo[1]:null; }
+  if(defHeat) it.heat=b.heat;
   if(b.armor){ if(it.melee==null)it.melee=0.9; if(it.firearm==null)it.firearm=0.9; }
   it.tpl=null;   // re-auto-match a template for the new base
   renderAll();
@@ -1849,7 +1905,14 @@ rvmatDrop.addEventListener('dragover',e=>{e.preventDefault();rvmatDrop.classList
 rvmatDrop.addEventListener('dragleave',()=>rvmatDrop.classList.remove('drag'));
 rvmatDrop.addEventListener('drop',e=>{e.preventDefault();rvmatDrop.classList.remove('drag'); if(e.dataTransfer.files[0])loadRvmat(e.dataTransfer.files[0]);});
 $('btnClearRvmat').onclick=()=>{ const it=current(); if(it){it.rvmat=null;renderEditor();renderOutputs();} };
-$('fRes').addEventListener('change',()=>{ const it=current(); if(it)it.res=Number($('fRes').value); });
+function resampleTex(durl,res){ return new Promise(ok=>{ if(!durl||!/^data:image\//.test(durl))return ok(durl);
+  const img=new Image(); img.onload=()=>{ if(img.width===res&&img.height===res)return ok(durl);
+    const c=document.createElement('canvas'); c.width=c.height=res; c.getContext('2d').drawImage(img,0,0,res,res); ok(c.toDataURL('image/png')); };
+  img.onerror=()=>ok(durl); img.src=durl; }); }
+$('fRes').addEventListener('change',async()=>{ const it=current(); if(!it)return; const res=Number($('fRes').value); it.res=res;
+  it.tex=await resampleTex(it.tex,res);
+  for(const v of (it.variants||[])) v.tex=await resampleTex(v.tex,res);
+  renderAll(); });
 $('fAdvOn').addEventListener('change',e=>{ $('advFields').style.display=e.target.checked?'block':'none'; });
 
 /* texture drop/click/paste */
@@ -1895,7 +1958,7 @@ $('helpFromAtt').onclick=e=>{ e.preventDefault(); $('helpModal').classList.add('
 $('btnHelpClose').onclick=()=>$('helpModal').classList.remove('open');
 $('helpModal').addEventListener('click',e=>{ if(e.target.id==='helpModal')$('helpModal').classList.remove('open'); });
 $('btnNew').onclick=()=>{ if(confirm('Start a new project? Unsaved work is lost.')){ proj=newProject(); activeId=null; buildBaseSelect(); syncProjInputs(); renderAll(); } };
-$('btnSaveProj').onclick=()=>{ downloadBlob(new Blob([JSON.stringify(proj,null,2)],{type:'application/json'}), proj.modName+'.forge.json'); };
+$('btnSaveProj').onclick=()=>{ downloadBlob(new Blob([JSON.stringify(proj,null,2)],{type:'application/json'}), proj.modName+'.kitbash.json'); };
 $('btnLoadProj').onclick=()=>$('projInput').click();
 $('projInput').onchange=e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{ try{ proj=Object.assign(newProject(),JSON.parse(r.result)); activeId=proj.items[0]?.id||null; buildBaseSelect(); syncProjInputs(); renderAll(); }catch(x){ alert('Bad project file'); } }; r.readAsText(f); e.target.value=''; };
 $('btnImportCpp').onclick=()=>$('cppInput').click();

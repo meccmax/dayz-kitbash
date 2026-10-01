@@ -2,13 +2,14 @@
   build-templates.ps1 — Kitbash
   Extracts vanilla clothing/gear COLOR textures (*_co.paa) from the game PBOs and
   converts them to PNG paint-over templates under .\templates\<bucket>\, plus a
-  templates\index.json the Forge UI reads to offer per-item underlays.
+  templates\index.json the Kitbash UI reads to offer per-item underlays.
 
-  Run once (re-run after a game update). Usage:
-      ./build-templates.ps1
-      ./build-templates.ps1 -Size 1024        # smaller files (downscaled)
-      ./build-templates.ps1 -DayZPath "E:\SteamLibrary\steamapps\common\DayZ"
-      ./build-templates.ps1 -Buckets tops,vests
+  Run once (re-run after a game update). Usage (the Bypass form avoids the
+  "not digitally signed" error without changing your system policy):
+      powershell -ExecutionPolicy Bypass -File .\build-templates.ps1
+      powershell -ExecutionPolicy Bypass -File .\build-templates.ps1 -Size 1024   # smaller files
+      powershell -ExecutionPolicy Bypass -File .\build-templates.ps1 -DayZPath "E:\SteamLibrary\steamapps\common\DayZ"
+      powershell -ExecutionPolicy Bypass -File .\build-templates.ps1 -Buckets tops,vests
 #>
 param(
   [string]$DayZPath = "",
@@ -78,7 +79,7 @@ if (-not (Test-Path $img2paa)) { throw "ImageToPAA.exe not found at $img2paa" }
 Write-Host "DayZ : $dayz"  -ForegroundColor DarkGray
 Write-Host "Tools: $bin"   -ForegroundColor DarkGray
 
-$tmp = Join-Path $env:TEMP ("forge_tpl_" + [guid]::NewGuid().ToString("N").Substring(0,8))
+$tmp = Join-Path $env:TEMP ("kitbash_tpl_" + [guid]::NewGuid().ToString("N").Substring(0,8))
 New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 New-Item -ItemType Directory -Force -Path $outRoot | Out-Null
 
@@ -124,7 +125,7 @@ try {
 
   Write-Host ""
   Write-Host "Done. $total template(s) written to $outRoot" -ForegroundColor Green
-  Write-Host "Reload the Forge page to use them." -ForegroundColor Green
+  Write-Host "Reload the Kitbash page to use them." -ForegroundColor Green
 }
 finally {
   Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
